@@ -1,0 +1,8 @@
+packages:
+  - apps/*
+  - packages/*
+
+# pnpm 11 起,依赖的 build scripts 必须显式批准(allowBuilds 取代了 onlyBuiltDependencies)
+allowBuilds:
+  '@parcel/watcher': false
+  esbuild: true

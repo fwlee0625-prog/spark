@@ -1,0 +1,16 @@
+{
+  "name": "spark",
+  "private": true,
+  "version": "0.1.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "pnpm -r --parallel dev",
+    "build": "pnpm --filter @spark/web build",
+    "start": "pnpm build && pnpm --filter @spark/server start",
+    "start:only": "pnpm --filter @spark/server start",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm --filter @spark/server test"
+  }
+}
