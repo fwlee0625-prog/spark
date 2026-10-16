@@ -33,10 +33,48 @@ pnpm start
 
 环境变量(可选):`SPARK_PORT`(默认 7788)、`SPARK_DATA_DIR`(默认 `apps/server/data`)、`SPARK_WEB_DIST`。
 
+## 让 AI 直接管理项目(MCP)
+
+Spark 服务内嵌了 MCP 端点(Streamable HTTP):`http://127.0.0.1:7788/mcp`,Cursor / Claude 等 AI 客户端
+可以直接创建项目、启停、查看终端信息和日志,不用手动操作页面。
+所有客户端共用 Spark 服务这一个入口,**不会为每个会话额外启动进程**。
+
+使用前提:Spark 服务已运行(`pnpm start`)。仓库已带 `.cursor/mcp.json`,Cursor 打开本项目后在
+「Settings → MCP」启用 `spark` 即可。其他支持 HTTP 的客户端配置:
+
+```json
+{
+  "mcpServers": {
+    "spark": { "url": "http://127.0.0.1:7788/mcp" }
+  }
+}
+```
+
+连开发实例时把端口改为 `7789`。仅支持 stdio 的客户端可借助 `npx mcp-remote http://127.0.0.1:7788/mcp` 桥接。
+
+安全:端点只监听 `127.0.0.1`,同样校验 Host;带 `Origin` 的浏览器请求一律拒绝(防止网页跨站调用);
+无状态模式,仅接受 POST。工具通过回环地址调用本服务自己的 `/api`,复用原有校验与业务逻辑。
+
+| 工具 | 说明 |
+| --- | --- |
+| `detect_project` | 识别目录类型并给出建议命令(只读) |
+| `list_projects` / `get_project` | 项目列表 / 单个项目完整配置 |
+| `get_terminals` | 项目有几个终端、各终端状态,附日志概况(总行数、最近输出、疑似报错数) |
+| `create_project` / `update_project` / `delete_project` | 增删改项目;`create_project` 省略终端时按识别结果生成,`start=true` 可创建后立即启动 |
+| `control_project` | 启动 / 停止 / 重启整个项目或单个终端,端口冲突时返回占用来源 |
+| `get_logs` / `clear_logs` | 读取(`tail`、`grep`、`errorsOnly`、`stream`)/ 清空终端日志 |
+| `get_app_logs` | Spark 自身运行日志 |
+| `check_port` | 单端口占用检测;不传端口则列出全部监听端口 |
+| `list_groups` / `create_group` / `control_group` / `delete_group` | 分组管理与整组启停 |
+| `get_settings` | 读取全局设置 |
+
+项目和终端参数都可以传 id 或名称(终端还可传编号)。注意:终端命令会在本机执行,请在客户端保留对变更类工具的确认。
+
 ## Monorepo 结构
 
 ```
 apps/server   Express 服务:进程管理、日志 SSE、识别器、端口检测、配置存储
+apps/mcp      MCP 工具定义(库):由 server 挂载到 /mcp 端点,把 Spark API 封装为 AI 可调用的工具
 apps/web      Vue 3 + Vite + Tailwind v4:首页 / 项目列表 / 端口管理 / 设置
 packages/shared   前后端共享类型与常量(自动被两端以 TS 源码消费)
 ```

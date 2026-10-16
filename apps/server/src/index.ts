@@ -4,6 +4,17 @@ import { createApp } from './app.js';
 import { HOST, PORT, WEB_DIST } from './config.js';
 
 const { app, ctx } = await createApp();
+for (const level of ['log', 'info', 'warn', 'error', 'debug'] as const) {
+  const original = console[level].bind(console);
+  console[level] = (...args: unknown[]) => {
+    original(...args);
+    ctx.appLogs.add(level, args.map((arg) => {
+      if (typeof arg === 'string') return arg;
+      if (arg instanceof Error) return arg.stack ?? arg.message;
+      try { return JSON.stringify(arg); } catch { return String(arg); }
+    }).join(' '));
+  };
+}
 ctx.ports.start();
 
 for (const backup of ctx.store.corruptBackups) {

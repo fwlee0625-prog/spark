@@ -209,6 +209,21 @@ export function projectsRouter(ctx: SparkContext): Router {
     });
   });
 
+  // 日志快照(JSON):返回缓冲区内容,tail 限制返回最后 N 行;供 MCP / CLI 一次性读取
+  router.get('/:id/logs/snapshot', (req, res) => {
+    const id = String(req.params.id);
+    const project = ctx.store.getProject(id);
+    if (!project) return res.status(404).json({ error: 'NOT_FOUND', message: '项目不存在' });
+    const terminalId = String(req.query.terminalId ?? projectTerminals(project)[0]!.id);
+    if (!projectTerminals(project).some((t) => t.id === terminalId)) return res.status(404).json({ error: 'NOT_FOUND', message: '终端不存在' });
+    const all = ctx.logs.replay(terminalKey(id, terminalId));
+    const tail = req.query.tail == null ? null : Number(req.query.tail);
+    if (tail !== null && (!Number.isInteger(tail) || tail < 1)) {
+      return res.status(400).json({ error: 'BAD_REQUEST', message: 'tail 必须是正整数' });
+    }
+    res.json({ terminalId, total: all.length, lines: tail === null ? all : all.slice(-tail) });
+  });
+
   // 清空日志
   router.post('/:id/logs/clear', (req, res) => {
     const project = ctx.store.getProject(String(req.params.id));

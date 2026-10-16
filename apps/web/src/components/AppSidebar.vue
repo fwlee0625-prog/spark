@@ -10,6 +10,7 @@ const nav = [
   { to: '/', label: '首页', icon: 'home' },
   { to: '/projects', label: '项目列表', icon: 'list' },
   { to: '/ports', label: '端口管理', icon: 'ports' },
+  { to: '/logs', label: '软件日志', icon: 'terminal' },
 ] as const;
 </script>
 

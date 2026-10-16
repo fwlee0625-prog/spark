@@ -73,11 +73,11 @@ Spark 关闭期间不执行崩溃自动重启；重新打开后恢复管理。" 
       <!-- Shell 启动方式 -->
       <section class="glass-card rounded-2xl bg-white p-5 shadow-sm">
         <h2 class="flex items-center gap-1.5 text-sm font-semibold text-slate-700">Shell 启动方式<Tooltip label="Shell 启动方式说明" content="决定项目命令以什么方式执行，影响 PATH、nvm、pyenv、conda 等环境。&#10;&#10;登录 shell (zsh -ilc)：加载 .zshrc，PATH/nvm/pyenv 与终端一致（默认）&#10;非登录 shell (zsh -lc)：跳过 .zshrc，.zshrc 过重导致启动慢时可切换&#10;直接 spawn (/bin/sh -c)：最快，但可能缺少自定义 PATH" /></h2>
-        <div class="mt-3 space-y-2">
+        <div class="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
           <label
             v-for="opt in modeOptions"
             :key="opt.value"
-            class="flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-2"
+            class="flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3"
             :class="
               form.shellMode === opt.value
                 ? 'border-blue-300 bg-blue-50/60'

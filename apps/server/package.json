@@ -9,6 +9,8 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "@spark/mcp": "workspace:*",
     "@spark/shared": "workspace:*",
     "express": "^5.1.0"
   },

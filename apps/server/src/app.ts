@@ -6,6 +6,7 @@ import type { NextFunction, Request, Response } from 'express';
 import { DATA_DIR, PORT, PROJECTS_FILE, SETTINGS_FILE, WEB_DIST } from './config.js';
 import { ConfigStore } from './core/configStore.js';
 import { LogBufferManager } from './core/logBuffer.js';
+import { AppLogStore } from './core/appLogStore.js';
 import { StatusHub } from './core/sseHub.js';
 import { PortMonitor } from './core/portMonitor.js';
 import { ProcessManager } from './core/processManager.js';
@@ -15,10 +16,13 @@ import { detectRouter } from './routes/detect.js';
 import { fsRouter } from './routes/fs.js';
 import { portsRouter } from './routes/ports.js';
 import { settingsRouter } from './routes/settings.js';
+import { appLogsRouter } from './routes/appLogs.js';
+import { mcpRouter } from './routes/mcp.js';
 
 export interface SparkContext {
   store: ConfigStore;
   logs: LogBufferManager;
+  appLogs: AppLogStore;
   pm: ProcessManager;
   hub: StatusHub;
   ports: PortMonitor;
@@ -28,11 +32,12 @@ export async function createApp(): Promise<{ app: express.Express; ctx: SparkCon
   const store = new ConfigStore({ projectsFile: PROJECTS_FILE, settingsFile: SETTINGS_FILE });
   await store.init();
   const logs = new LogBufferManager(store.getSettings().logMaxLines);
+  const appLogs = new AppLogStore(path.join(DATA_DIR, 'logs', 'spark.log.jsonl'));
   const hub = new StatusHub();
   const pm = new ProcessManager(logs, (evt) => hub.broadcast(evt), path.join(DATA_DIR, 'runtime'));
   pm.restore(store.listProjects(), store.getSettings());
   const ports = new PortMonitor(store, pm);
-  const ctx: SparkContext = { store, logs, pm, hub, ports };
+  const ctx: SparkContext = { store, logs, appLogs, pm, hub, ports };
 
   // 随机 CSRF token:页面启动时获取,修改类请求必须携带
   const csrfToken = randomBytes(24).toString('hex');
@@ -67,12 +72,14 @@ export async function createApp(): Promise<{ app: express.Express; ctx: SparkCon
     next();
   });
 
+  app.use('/mcp', mcpRouter(`http://127.0.0.1:${PORT}`));
   app.use('/api/projects', projectsRouter(ctx));
   app.use('/api/groups', groupsRouter(ctx));
   app.use('/api/detect', detectRouter());
   app.use('/api/fs', fsRouter());
   app.use('/api/ports', portsRouter(ctx));
   app.use('/api/settings', settingsRouter(ctx));
+  app.use('/api/app-logs', appLogsRouter(ctx));
   app.get('/api/events', (_req, res) => hub.add(res));
   app.get('/api/health', (_req, res) => res.json({ ok: true, version: '0.1.0' }));
 

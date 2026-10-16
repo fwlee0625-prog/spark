@@ -64,6 +64,7 @@ export interface GroupStartResult {
 }
 
 export type SettingsWithDir = Settings & { dataDir: string };
+export interface AppLogEntry { id: number; timestamp: string; level: 'log' | 'info' | 'warn' | 'error' | 'debug'; message: string }
 
 export const api = {
   listProjects: () => request<ProjectWithState[]>('GET', '/api/projects'),
@@ -95,4 +96,6 @@ export const api = {
 
   getSettings: () => request<SettingsWithDir>('GET', '/api/settings'),
   updateSettings: (patch: Partial<Settings>) => request<Settings>('PUT', '/api/settings', patch),
+  getAppLogs: (limit = 1000) => request<AppLogEntry[]>('GET', `/api/app-logs?limit=${limit}`),
+  clearAppLogs: () => request<{ ok: true }>('DELETE', '/api/app-logs'),
 };
