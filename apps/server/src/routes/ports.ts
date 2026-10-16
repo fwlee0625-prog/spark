@@ -1,8 +1,8 @@
-import { Router } from 'express';
 import type { PortStatus } from '@spark/shared';
+import { Router } from 'express';
 import { getPortStatus } from '../core/portStatus.js';
-import { asyncHandler, runningGroupsWithCwd } from './util.js';
 import type { SparkContext } from './projects.js';
+import { asyncHandler, runningGroupsWithCwd } from './util.js';
 
 function parsePort(raw: string): number | null {
   const n = Number(raw);

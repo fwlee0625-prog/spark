@@ -55,7 +55,11 @@ export interface RuntimeState {
 export type TerminalWithState = TerminalConfig & RuntimeState & { listeningPorts: number[] };
 /** 有实际监听端口时展示检测结果，否则展示配置端口。 */
 export function displayedPorts(terminals: TerminalWithState[]): number[] {
-  return [...new Set(terminals.flatMap((t) => t.listeningPorts.length ? t.listeningPorts : t.port === null ? [] : [t.port]))].sort((a, b) => a - b);
+  return [
+    ...new Set(
+      terminals.flatMap((t) => (t.listeningPorts.length ? t.listeningPorts : t.port === null ? [] : [t.port])),
+    ),
+  ].sort((a, b) => a - b);
 }
 
 export type ProjectWithState = Project & RuntimeState & { terminalStates: TerminalWithState[] };

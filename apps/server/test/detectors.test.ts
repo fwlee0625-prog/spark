@@ -85,7 +85,7 @@ describe('detectors', () => {
 
   it('FastAPI 项目:推荐 uvicorn 启动', () => {
     const dir = makeDir('fastapi-app', {
-      'venv': null,
+      venv: null,
       'main.py': 'from fastapi import FastAPI',
       'requirements.txt': 'fastapi==0.110\nuvicorn==0.29\n',
     });

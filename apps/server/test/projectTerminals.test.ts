@@ -1,21 +1,24 @@
-import express from 'express';
-import type { ApiError, PortStatus, ProjectWithState } from '@spark/shared';
-import type { Server } from 'node:http';
 import fsp from 'node:fs/promises';
+import type { Server } from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
+import type { ApiError, PortStatus, ProjectWithState } from '@spark/shared';
+import express from 'express';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ConfigStore } from '../src/core/configStore.js';
 import { LogBufferManager } from '../src/core/logBuffer.js';
 import { PortMonitor } from '../src/core/portMonitor.js';
+import { getPortStatus } from '../src/core/portStatus.js';
 import { ProcessManager } from '../src/core/processManager.js';
-import { projectsRouter } from '../src/routes/projects.js';
-import { settingsRouter } from '../src/routes/settings.js';
 import { groupsRouter } from '../src/routes/groups.js';
 import { portsRouter } from '../src/routes/ports.js';
-import { getPortStatus } from '../src/core/portStatus.js';
+import { projectsRouter } from '../src/routes/projects.js';
+import { settingsRouter } from '../src/routes/settings.js';
 
-vi.mock('../src/core/portStatus.js', async (importOriginal) => ({ ...await importOriginal<typeof import('../src/core/portStatus.js')>(), getPortStatus: vi.fn() }));
+vi.mock('../src/core/portStatus.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../src/core/portStatus.js')>()),
+  getPortStatus: vi.fn(),
+}));
 let dir: string;
 let server: Server;
 let url: string;
@@ -24,7 +27,10 @@ beforeEach(async () => {
   dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'spark-terminal-api-'));
   await fsp.mkdir(path.join(dir, 'frontend'));
   await fsp.mkdir(path.join(dir, 'backend'));
-  const store = new ConfigStore({ projectsFile: path.join(dir, 'projects.json'), settingsFile: path.join(dir, 'settings.json') });
+  const store = new ConfigStore({
+    projectsFile: path.join(dir, 'projects.json'),
+    settingsFile: path.join(dir, 'settings.json'),
+  });
   await store.init();
   const logs = new LogBufferManager(100);
   const pm = new ProcessManager(logs, () => {});
@@ -39,7 +45,11 @@ beforeEach(async () => {
     const s = app.listen(0, '127.0.0.1', () => resolve(s));
   });
   url = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
-  vi.mocked(getPortStatus).mockImplementation(async (port) => ({ port, occupied: port === 8000, source: port === 8000 ? 'external' : null }));
+  vi.mocked(getPortStatus).mockImplementation(async (port) => ({
+    port,
+    occupied: port === 8000,
+    source: port === 8000 ? 'external' : null,
+  }));
 });
 afterEach(async () => {
   await ctx.pm.stopAll(ctx.store.listProjects());
@@ -48,23 +58,57 @@ afterEach(async () => {
   await fsp.rm(dir, { recursive: true, force: true });
   vi.restoreAllMocks();
 });
-async function request<T = ProjectWithState & ApiError & { blocked: { reason: string }[] }>(route: string, method = 'GET', body?: unknown) {
-  const res = await fetch(url + route, { method, headers: { 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) });
-  return { status: res.status, body: await res.json() as T };
+async function request<T = ProjectWithState & ApiError & { blocked: { reason: string }[] }>(
+  route: string,
+  method = 'GET',
+  body?: unknown,
+) {
+  const res = await fetch(url + route, {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  return { status: res.status, body: (await res.json()) as T };
 }
 function input() {
-  return { name: '全栈项目', cwd: dir, terminals: [
-    { id: 'main', number: 1, name: '前端', env: { APP_MODE: 'frontend' }, cwd: 'frontend', command: 'pnpm dev', port: 5173 },
-    { id: 'api', number: 3, name: '后端', env: { APP_MODE: 'backend' }, cwd: 'backend', command: 'python app.py', port: 8000 },
-  ] };
+  return {
+    name: '全栈项目',
+    cwd: dir,
+    terminals: [
+      {
+        id: 'main',
+        number: 1,
+        name: '前端',
+        env: { APP_MODE: 'frontend' },
+        cwd: 'frontend',
+        command: 'pnpm dev',
+        port: 5173,
+      },
+      {
+        id: 'api',
+        number: 3,
+        name: '后端',
+        env: { APP_MODE: 'backend' },
+        cwd: 'backend',
+        command: 'python app.py',
+        port: 8000,
+      },
+    ],
+  };
 }
 describe('项目多终端 API', () => {
   it('退出设置默认保留项目，布尔值可以保存，拒绝字符串', async () => {
     expect((await request<{ stopProjectsOnExit: boolean }>('/settings')).body.stopProjectsOnExit).toBe(false);
-    expect((await request<{ stopProjectsOnExit: boolean }>('/settings', 'PUT', { stopProjectsOnExit: true })).body.stopProjectsOnExit).toBe(true);
+    expect(
+      (await request<{ stopProjectsOnExit: boolean }>('/settings', 'PUT', { stopProjectsOnExit: true })).body
+        .stopProjectsOnExit,
+    ).toBe(true);
     expect((await request('/settings', 'PUT', { stopProjectsOnExit: 'false' })).status).toBe(400);
     expect(ctx.store.getSettings().stopProjectsOnExit).toBe(true);
-    expect((await request<{ stopProjectsOnExit: boolean }>('/settings', 'PUT', { stopProjectsOnExit: false })).body.stopProjectsOnExit).toBe(false);
+    expect(
+      (await request<{ stopProjectsOnExit: boolean }>('/settings', 'PUT', { stopProjectsOnExit: false })).body
+        .stopProjectsOnExit,
+    ).toBe(false);
   });
   it('从新建、展示到修改，保存多个终端并返回各自状态', async () => {
     const created = await request('/projects', 'POST', input());

@@ -1,8 +1,8 @@
 import fs from 'node:fs';
+import type { Server } from 'node:http';
 import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
-import type { Server } from 'node:http';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -49,13 +49,19 @@ describe('/mcp 端点', () => {
     expect(tools).toEqual(expect.arrayContaining(['create_project', 'get_terminals', 'get_logs', 'control_project']));
 
     const call = async (name: string, args: Record<string, unknown>) => {
-      const r = (await client.callTool({ name, arguments: args })) as { isError?: boolean; content: { text: string }[] };
+      const r = (await client.callTool({ name, arguments: args })) as {
+        isError?: boolean;
+        content: { text: string }[];
+      };
       return { error: r.isError === true, text: r.content[0]!.text };
     };
     const created = await call('create_project', {
       name: 'demo',
       cwd: tmp,
-      terminals: [{ name: 'web', command: 'echo hi' }, { name: 'api', command: 'echo api' }],
+      terminals: [
+        { name: 'web', command: 'echo hi' },
+        { name: 'api', command: 'echo api' },
+      ],
     });
     expect(created.error).toBe(false);
     expect(JSON.parse(created.text).created.terminalCount).toBe(2);
@@ -69,7 +75,11 @@ describe('/mcp 端点', () => {
   });
 
   it('拒绝带 Origin 的浏览器请求', async () => {
-    const res = await fetch(base, { method: 'POST', headers: { 'Content-Type': 'application/json', Origin: 'http://localhost:3000' }, body: '{}' });
+    const res = await fetch(base, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Origin: 'http://localhost:3000' },
+      body: '{}',
+    });
     expect(res.status).toBe(403);
   });
 

@@ -1,6 +1,5 @@
 import type { LogLine } from '@spark/shared';
 
-// eslint-disable-next-line no-control-regex
 const ANSI_RE = /\u001b\[[0-9;?]*[ -/]*[@-~]/g;
 
 /** 常见错误特征,用于只看报错 */
@@ -38,7 +37,10 @@ function formatTime(ts: number): string {
 }
 
 /** 过滤日志并格式化为文本,返回命中总数与是否被截断 */
-export function formatLogs(lines: LogLine[], filter: LogFilter): { text: string; matched: number; returned: number; truncated: boolean } {
+export function formatLogs(
+  lines: LogLine[],
+  filter: LogFilter,
+): { text: string; matched: number; returned: number; truncated: boolean } {
   const matcher = filter.grep ? buildMatcher(filter.grep) : null;
   const matched = lines
     .map((l) => ({ ...l, line: filter.stripAnsi === false ? l.line : stripAnsi(l.line) }))

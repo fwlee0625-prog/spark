@@ -38,7 +38,9 @@ export class SparkClient {
         ...(body === undefined ? {} : { body: JSON.stringify(body) }),
       });
     } catch (err) {
-      throw new Error(`无法连接 Spark 服务(${this.baseUrl}):${(err as Error).message}。请确认服务已启动,或通过 SPARK_URL 指定地址`);
+      throw new Error(
+        `无法连接 Spark 服务(${this.baseUrl}):${(err as Error).message}。请确认服务已启动,或通过 SPARK_URL 指定地址`,
+      );
     }
   }
 

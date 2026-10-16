@@ -1,5 +1,5 @@
-import net from 'node:net';
 import { execFile } from 'node:child_process';
+import net from 'node:net';
 import type { PortProcess } from '@spark/shared';
 
 function run(cmd: string, args: string[]): Promise<string> {
@@ -57,9 +57,14 @@ export async function pidCwd(pid: number): Promise<string | null> {
   }
 }
 
-
-export interface ListeningProcess extends PortProcess { port: number }
-export interface ProcessRelation { pid: number; ppid: number; pgid: number }
+export interface ListeningProcess extends PortProcess {
+  port: number;
+}
+export interface ProcessRelation {
+  pid: number;
+  ppid: number;
+  pgid: number;
+}
 
 /** lsof 字段输出能处理 IPv4、IPv6、通配监听及包含空格的命令名。 */
 export function parseListeners(output: string): ListeningProcess[] {
@@ -67,8 +72,10 @@ export function parseListeners(output: string): ListeningProcess[] {
   let command = '';
   const result = new Map<string, ListeningProcess>();
   for (const line of output.split('\n')) {
-    if (line.startsWith('p')) { pid = Number(line.slice(1)); command = ''; }
-    else if (line.startsWith('c')) command = line.slice(1);
+    if (line.startsWith('p')) {
+      pid = Number(line.slice(1));
+      command = '';
+    } else if (line.startsWith('c')) command = line.slice(1);
     else if (line.startsWith('n')) {
       const port = Number(line.match(/:(\d+)$/)?.[1]);
       if (Number.isInteger(pid) && pid > 0 && Number.isInteger(port) && port > 0 && port <= 65535) {

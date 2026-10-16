@@ -1,13 +1,13 @@
-import { projectTerminals, terminalKey } from '@spark/shared';
 import fs from 'node:fs';
 import path from 'node:path';
+import type { Project, ProjectWithState, TerminalConfig } from '@spark/shared';
+import { projectTerminals, terminalKey } from '@spark/shared';
 import { Router } from 'express';
-import type { Project, ProjectWithState } from '@spark/shared';
-import type { PortMonitor } from '../core/portMonitor.js';
 import type { ConfigStore } from '../core/configStore.js';
-import type { ProcessManager } from '../core/processManager.js';
 import type { LogBufferManager } from '../core/logBuffer.js';
+import type { PortMonitor } from '../core/portMonitor.js';
 import { getPortStatus } from '../core/portStatus.js';
+import type { ProcessManager } from '../core/processManager.js';
 import { initSse, sseHeartbeat, sseSend } from '../core/sseHub.js';
 import { asyncHandler, normalizeStringArray, normalizeTerminals, runningGroupsWithCwd } from './util.js';
 
@@ -26,10 +26,13 @@ export function projectsRouter(ctx: SparkContext): Router {
   const router = Router();
 
   // 项目列表(含运行状态)
-  router.get('/', asyncHandler(async (_req, res) => {
-    await ctx.ports.refresh();
-    res.json(ctx.store.listProjects().map((p) => withState(ctx, p)));
-  }));
+  router.get(
+    '/',
+    asyncHandler(async (_req, res) => {
+      await ctx.ports.refresh();
+      res.json(ctx.store.listProjects().map((p) => withState(ctx, p)));
+    }),
+  );
 
   // 新建项目
   router.post(
@@ -45,7 +48,7 @@ export function projectsRouter(ctx: SparkContext): Router {
       if (!fs.existsSync(cwd) || !fs.statSync(cwd).isDirectory()) {
         return res.status(400).json({ error: 'BAD_REQUEST', message: '项目目录不存在' });
       }
-      let terminals;
+      let terminals: TerminalConfig[];
       try {
         terminals = normalizeTerminals(body.terminals, cwd);
       } catch (err) {
@@ -70,7 +73,8 @@ export function projectsRouter(ctx: SparkContext): Router {
       const existing = ctx.store.getProject(String(req.params.id));
       if (!existing) return res.status(404).json({ error: 'NOT_FOUND', message: '项目不存在' });
       const body = (req.body ?? {}) as Record<string, unknown>;
-      if (ctx.pm.isRunning(existing.id)) return res.status(409).json({ error: 'ALREADY_RUNNING', message: '请先停止项目再编辑配置' });
+      if (ctx.pm.isRunning(existing.id))
+        return res.status(409).json({ error: 'ALREADY_RUNNING', message: '请先停止项目再编辑配置' });
       const patch: Record<string, unknown> = {};
       if (body.name !== undefined) patch.name = String(body.name).trim();
       if (body.type !== undefined) patch.type = String(body.type).trim() || 'generic';
@@ -122,7 +126,13 @@ export function projectsRouter(ctx: SparkContext): Router {
         return res.status(409).json({ error: 'ALREADY_RUNNING', message: '项目已在运行中' });
       }
       for (const terminal of ctx.pm.terminalStates(project)) {
-        if (terminal.port == null || terminal.status === 'running' || terminal.status === 'starting' || req.query.force === '1') continue;
+        if (
+          terminal.port == null ||
+          terminal.status === 'running' ||
+          terminal.status === 'starting' ||
+          req.query.force === '1'
+        )
+          continue;
         const status = await getPortStatus(terminal.port, runningGroupsWithCwd(ctx));
         if (status.occupied) {
           const projectName = status.projectId ? ctx.store.getProject(status.projectId)?.name : undefined;
@@ -163,7 +173,10 @@ export function projectsRouter(ctx: SparkContext): Router {
       for (const terminal of projectTerminals(project)) {
         if (terminal.port == null) continue;
         const status = await getPortStatus(terminal.port, runningGroupsWithCwd(ctx));
-        if (status.occupied) return res.status(409).json({ error: 'PORT_IN_USE', message: `端口 ${terminal.port} 已被占用`, port: status });
+        if (status.occupied)
+          return res
+            .status(409)
+            .json({ error: 'PORT_IN_USE', message: `端口 ${terminal.port} 已被占用`, port: status });
       }
       ctx.pm.start(project, ctx.store.getSettings());
       res.json({ ok: true });
@@ -171,25 +184,34 @@ export function projectsRouter(ctx: SparkContext): Router {
   );
 
   // 单个终端操作，使用同样的端口保护。
-  router.post('/:id/terminals/:terminalId/:action', asyncHandler(async (req, res) => {
-    const project = ctx.store.getProject(String(req.params.id));
-    if (!project) return res.status(404).json({ error: 'NOT_FOUND', message: '项目不存在' });
-    const terminal = projectTerminals(project).find((t) => t.id === req.params.terminalId);
-    if (!terminal) return res.status(404).json({ error: 'NOT_FOUND', message: '终端不存在' });
-    const action = String(req.params.action);
-    if (!['start', 'stop', 'restart'].includes(action)) return res.status(404).json({ error: 'NOT_FOUND' });
-    if (action === 'start' && ctx.pm.terminalStates(project).some((t) => t.id === terminal.id && ['running', 'starting'].includes(t.status))) {
-      return res.status(409).json({ error: 'ALREADY_RUNNING', message: '终端已在运行中' });
-    }
-    if (action === 'restart') await ctx.pm.stop(project, terminal.id);
-    if (action !== 'stop' && terminal.port != null && req.query.force !== '1') {
-      const status = await getPortStatus(terminal.port, runningGroupsWithCwd(ctx));
-      if (status.occupied) return res.status(409).json({ error: 'PORT_IN_USE', message: `端口 ${terminal.port} 已被占用`, port: status });
-    }
-    if (action === 'stop') await ctx.pm.stop(project, terminal.id);
-    else ctx.pm.start(project, ctx.store.getSettings(), terminal.id);
-    res.json({ ok: true });
-  }));
+  router.post(
+    '/:id/terminals/:terminalId/:action',
+    asyncHandler(async (req, res) => {
+      const project = ctx.store.getProject(String(req.params.id));
+      if (!project) return res.status(404).json({ error: 'NOT_FOUND', message: '项目不存在' });
+      const terminal = projectTerminals(project).find((t) => t.id === req.params.terminalId);
+      if (!terminal) return res.status(404).json({ error: 'NOT_FOUND', message: '终端不存在' });
+      const action = String(req.params.action);
+      if (!['start', 'stop', 'restart'].includes(action)) return res.status(404).json({ error: 'NOT_FOUND' });
+      if (
+        action === 'start' &&
+        ctx.pm.terminalStates(project).some((t) => t.id === terminal.id && ['running', 'starting'].includes(t.status))
+      ) {
+        return res.status(409).json({ error: 'ALREADY_RUNNING', message: '终端已在运行中' });
+      }
+      if (action === 'restart') await ctx.pm.stop(project, terminal.id);
+      if (action !== 'stop' && terminal.port != null && req.query.force !== '1') {
+        const status = await getPortStatus(terminal.port, runningGroupsWithCwd(ctx));
+        if (status.occupied)
+          return res
+            .status(409)
+            .json({ error: 'PORT_IN_USE', message: `端口 ${terminal.port} 已被占用`, port: status });
+      }
+      if (action === 'stop') await ctx.pm.stop(project, terminal.id);
+      else ctx.pm.start(project, ctx.store.getSettings(), terminal.id);
+      res.json({ ok: true });
+    }),
+  );
 
   // SSE 实时日志(先回放缓冲,再接实时流)
   router.get('/:id/logs', (req, res) => {
@@ -197,7 +219,8 @@ export function projectsRouter(ctx: SparkContext): Router {
     const project = ctx.store.getProject(id);
     if (!project) return res.status(404).json({ error: 'NOT_FOUND', message: '项目不存在' });
     const terminalId = String(req.query.terminalId ?? projectTerminals(project)[0]!.id);
-    if (!projectTerminals(project).some((t) => t.id === terminalId)) return res.status(404).json({ error: 'NOT_FOUND', message: '终端不存在' });
+    if (!projectTerminals(project).some((t) => t.id === terminalId))
+      return res.status(404).json({ error: 'NOT_FOUND', message: '终端不存在' });
     const key = terminalKey(id, terminalId);
     initSse(res);
     for (const line of ctx.logs.replay(key)) sseSend(res, line);
@@ -215,7 +238,8 @@ export function projectsRouter(ctx: SparkContext): Router {
     const project = ctx.store.getProject(id);
     if (!project) return res.status(404).json({ error: 'NOT_FOUND', message: '项目不存在' });
     const terminalId = String(req.query.terminalId ?? projectTerminals(project)[0]!.id);
-    if (!projectTerminals(project).some((t) => t.id === terminalId)) return res.status(404).json({ error: 'NOT_FOUND', message: '终端不存在' });
+    if (!projectTerminals(project).some((t) => t.id === terminalId))
+      return res.status(404).json({ error: 'NOT_FOUND', message: '终端不存在' });
     const all = ctx.logs.replay(terminalKey(id, terminalId));
     const tail = req.query.tail == null ? null : Number(req.query.tail);
     if (tail !== null && (!Number.isInteger(tail) || tail < 1)) {
@@ -229,7 +253,8 @@ export function projectsRouter(ctx: SparkContext): Router {
     const project = ctx.store.getProject(String(req.params.id));
     if (!project) return res.status(404).json({ error: 'NOT_FOUND' });
     const terminalId = String(req.query.terminalId ?? projectTerminals(project)[0]!.id);
-    if (!projectTerminals(project).some((t) => t.id === terminalId)) return res.status(404).json({ error: 'NOT_FOUND' });
+    if (!projectTerminals(project).some((t) => t.id === terminalId))
+      return res.status(404).json({ error: 'NOT_FOUND' });
     ctx.logs.clear(terminalKey(project.id, terminalId));
     res.json({ ok: true });
   });

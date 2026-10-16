@@ -1,8 +1,8 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { DetectResult, Group, LogLine, PortStatus, ProjectWithState, Settings } from '@spark/shared';
 import { z } from 'zod';
-import { SparkApiError } from './client.js';
 import type { SparkClient } from './client.js';
+import { SparkApiError } from './client.js';
 import { formatLogs, stripAnsi } from './logs.js';
 import { resolveGroup, resolveProject, resolveTerminal, summarizeProject, summarizeTerminal } from './resolve.js';
 
@@ -56,7 +56,8 @@ export function registerTools(server: McpServer, client: SparkClient): void {
   server.registerTool(
     'detect_project',
     {
-      description: '识别目录的项目类型(Node/Python 等)并给出建议启动命令。只读取文件,不执行任何命令。创建项目前可先调用。',
+      description:
+        '识别目录的项目类型(Node/Python 等)并给出建议启动命令。只读取文件,不执行任何命令。创建项目前可先调用。',
       inputSchema: { dir: z.string().min(1).describe('项目目录绝对路径') },
       annotations: READ,
     },
@@ -98,7 +99,9 @@ export function registerTools(server: McpServer, client: SparkClient): void {
       const p = await resolveProject(client, project);
       const terminals = await Promise.all(
         p.terminalStates.map(async (t) => {
-          const snap = await client.get<{ total: number; lines: LogLine[] }>(`/api/projects/${q(p.id)}/logs/snapshot?terminalId=${q(t.id)}`);
+          const snap = await client.get<{ total: number; lines: LogLine[] }>(
+            `/api/projects/${q(p.id)}/logs/snapshot?terminalId=${q(t.id)}`,
+          );
           const errors = formatLogs(snap.lines, { tail: 1, errorsOnly: true, stripAnsi: true });
           const last = snap.lines.at(-1);
           return {
@@ -106,7 +109,9 @@ export function registerTools(server: McpServer, client: SparkClient): void {
             logs: {
               totalLines: snap.total,
               suspectedErrorLines: errors.matched,
-              lastLine: last ? { at: new Date(last.ts).toISOString(), stream: last.stream, text: stripAnsi(last.line) } : null,
+              lastLine: last
+                ? { at: new Date(last.ts).toISOString(), stream: last.stream, text: stripAnsi(last.line) }
+                : null,
             },
           };
         }),
@@ -257,7 +262,9 @@ export function registerTools(server: McpServer, client: SparkClient): void {
     safe(async ({ project, terminal, tail, grep, stream, errorsOnly, stripAnsi }) => {
       const p = await resolveProject(client, project);
       const t = resolveTerminal(p.terminalStates, terminal);
-      const snap = await client.get<{ total: number; lines: LogLine[] }>(`/api/projects/${q(p.id)}/logs/snapshot?terminalId=${q(t.id)}`);
+      const snap = await client.get<{ total: number; lines: LogLine[] }>(
+        `/api/projects/${q(p.id)}/logs/snapshot?terminalId=${q(t.id)}`,
+      );
       const out = formatLogs(snap.lines, {
         tail: tail ?? 200,
         ...(grep ? { grep } : {}),
@@ -281,7 +288,10 @@ export function registerTools(server: McpServer, client: SparkClient): void {
     'clear_logs',
     {
       description: '清空某个终端的日志缓冲区,便于复现问题前先清屏。',
-      inputSchema: { project: projectRef, terminal: z.string().optional().describe('终端 id / 编号 / 名称,默认第一个终端') },
+      inputSchema: {
+        project: projectRef,
+        terminal: z.string().optional().describe('终端 id / 编号 / 名称,默认第一个终端'),
+      },
       annotations: DESTRUCTIVE,
     },
     safe(async ({ project, terminal }) => {
@@ -310,7 +320,8 @@ export function registerTools(server: McpServer, client: SparkClient): void {
   server.registerTool(
     'check_port',
     {
-      description: '检测端口占用及来源(某个已管理项目的终端,或外部进程 pid)。不传 port 则列出所有已配置/已发现的监听端口。',
+      description:
+        '检测端口占用及来源(某个已管理项目的终端,或外部进程 pid)。不传 port 则列出所有已配置/已发现的监听端口。',
       inputSchema: { port: z.number().int().min(1).max(65535).optional() },
       annotations: READ,
     },
@@ -333,7 +344,9 @@ export function registerTools(server: McpServer, client: SparkClient): void {
       annotations: WRITE,
     },
     safe(async ({ name, projects }) => {
-      const ids = projects ? (await Promise.all(projects.map((ref) => resolveProject(client, ref)))).map((p) => p.id) : [];
+      const ids = projects
+        ? (await Promise.all(projects.map((ref) => resolveProject(client, ref)))).map((p) => p.id)
+        : [];
       return client.post<Group>('/api/groups', { name, projectIds: ids });
     }),
   );
@@ -369,7 +382,11 @@ export function registerTools(server: McpServer, client: SparkClient): void {
 
   server.registerTool(
     'get_settings',
-    { description: '读取 Spark 全局设置(Shell 启动方式、日志行数、自动重启上限、数据目录等)。', inputSchema: {}, annotations: READ },
+    {
+      description: '读取 Spark 全局设置(Shell 启动方式、日志行数、自动重启上限、数据目录等)。',
+      inputSchema: {},
+      annotations: READ,
+    },
     safe(() => client.get<Settings & { dataDir: string }>('/api/settings')),
   );
 }

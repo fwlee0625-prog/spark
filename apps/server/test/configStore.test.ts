@@ -18,7 +18,10 @@ afterAll(async () => {
 });
 
 function makeStore(): ConfigStore {
-  return new ConfigStore({ projectsFile: path.join(dir, 'projects.json'), settingsFile: path.join(dir, 'settings.json') });
+  return new ConfigStore({
+    projectsFile: path.join(dir, 'projects.json'),
+    settingsFile: path.join(dir, 'settings.json'),
+  });
 }
 
 const baseProject = {
@@ -72,7 +75,9 @@ describe('ConfigStore', () => {
     await store.init();
     const p = await store.addProject(baseProject);
 
-    await store.updateProject(p.id, { terminals: [{ ...baseProject.terminals[0], command: 'pnpm build', port: null }] });
+    await store.updateProject(p.id, {
+      terminals: [{ ...baseProject.terminals[0], command: 'pnpm build', port: null }],
+    });
     expect(store.getProject(p.id)?.terminals[0].command).toBe('pnpm build');
 
     const ok = await store.deleteProject(p.id);
@@ -109,9 +114,7 @@ describe('ConfigStore', () => {
   it('并发写入被串行化,不互相覆盖', async () => {
     const store = makeStore();
     await store.init();
-    await Promise.all(
-      Array.from({ length: 10 }, (_, i) => store.addProject({ ...baseProject, name: `p${i}` })),
-    );
+    await Promise.all(Array.from({ length: 10 }, (_, i) => store.addProject({ ...baseProject, name: `p${i}` })));
     expect(store.listProjects()).toHaveLength(10);
     const raw = JSON.parse(fs.readFileSync(path.join(dir, 'projects.json'), 'utf8'));
     expect(raw.projects).toHaveLength(10);
@@ -121,13 +124,28 @@ describe('ConfigStore', () => {
     const store = makeStore();
     await store.init();
     const terminals = [
-      { id: 'main', number: 1, name: '前端', env: { APP_MODE: 'frontend' }, cwd: 'frontend', command: 'pnpm dev', port: 5173 },
-      { id: 'api', number: 3, name: '后端', env: { APP_MODE: 'backend' }, cwd: 'backend', command: 'python app.py', port: 8000 },
+      {
+        id: 'main',
+        number: 1,
+        name: '前端',
+        env: { APP_MODE: 'frontend' },
+        cwd: 'frontend',
+        command: 'pnpm dev',
+        port: 5173,
+      },
+      {
+        id: 'api',
+        number: 3,
+        name: '后端',
+        env: { APP_MODE: 'backend' },
+        cwd: 'backend',
+        command: 'python app.py',
+        port: 8000,
+      },
     ];
     const project = await store.addProject({ ...baseProject, terminals });
     const reloaded = makeStore();
     await reloaded.init();
     expect(reloaded.getProject(project.id)?.terminals).toEqual(terminals);
   });
-
 });

@@ -125,7 +125,7 @@ Spark 关闭期间不执行崩溃自动重启；重新打开后恢复管理。" 
 
       <!-- 数据目录 -->
       <section class="glass-card rounded-2xl bg-white p-5 shadow-sm">
-        <h2 class="flex items-center gap-1.5 text-sm font-semibold text-slate-700">数据存储<Tooltip label="数据存储说明" content="projects.json（项目与分组）、settings.json（应用设置）；写入采用临时文件 + rename，可直接备份迁移。" /></h2>
+        <h2 class="flex items-center gap-1.5 text-sm font-semibold text-slate-700">数据存储<Tooltip label="数据存储说明" content="pnpm dev 使用仓库内 apps/server/data。pnpm start 使用 ~/.spark，首次启动且新目录还没有配置时，会从项目 data 复制一份。可用 SPARK_DATA_DIR 覆盖。含 projects.json（项目与分组）、settings.json；写入采用临时文件 + rename。" /></h2>
         <div
           class="mt-3 flex items-start gap-3 rounded-xl bg-slate-50 px-4 py-3"
         >

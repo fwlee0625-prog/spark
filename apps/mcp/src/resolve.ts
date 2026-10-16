@@ -8,19 +8,26 @@ export async function resolveProject(client: SparkClient, ref: string): Promise<
   if (byId) return byId;
   const matches = projects.filter((p) => p.name.toLowerCase() === ref.toLowerCase());
   if (matches.length === 1) return matches[0]!;
-  if (matches.length > 1) throw new Error(`存在多个名为「${ref}」的项目,请改用 id:${matches.map((p) => p.id).join(', ')}`);
+  if (matches.length > 1)
+    throw new Error(`存在多个名为「${ref}」的项目,请改用 id:${matches.map((p) => p.id).join(', ')}`);
   throw new Error(`未找到项目「${ref}」。可用项目:${projects.map((p) => `${p.name}(${p.id})`).join(', ') || '无'}`);
 }
 
 /** 按 id / 编号 / 名称解析终端;不传时取第一个终端 */
-export function resolveTerminal<T extends { id: string; number?: number; name: string }>(terminals: T[], ref?: string | number): T {
+export function resolveTerminal<T extends { id: string; number?: number; name: string }>(
+  terminals: T[],
+  ref?: string | number,
+): T {
   if (ref === undefined || ref === '') return terminals[0]!;
   const text = String(ref);
   const found =
     terminals.find((t) => t.id === text) ??
     terminals.find((t) => t.number !== undefined && String(t.number) === text) ??
     terminals.find((t) => t.name.toLowerCase() === text.toLowerCase());
-  if (!found) throw new Error(`未找到终端「${text}」。可用终端:${terminals.map((t) => `#${t.number ?? '-'} ${t.name}(${t.id})`).join(', ')}`);
+  if (!found)
+    throw new Error(
+      `未找到终端「${text}」。可用终端:${terminals.map((t) => `#${t.number ?? '-'} ${t.name}(${t.id})`).join(', ')}`,
+    );
   return found;
 }
 
@@ -28,7 +35,8 @@ export function resolveTerminal<T extends { id: string; number?: number; name: s
 export async function resolveGroup(client: SparkClient, ref: string): Promise<Group> {
   const groups = await client.get<Group[]>('/api/groups');
   const found = groups.find((g) => g.id === ref) ?? groups.find((g) => g.name.toLowerCase() === ref.toLowerCase());
-  if (!found) throw new Error(`未找到分组「${ref}」。可用分组:${groups.map((g) => `${g.name}(${g.id})`).join(', ') || '无'}`);
+  if (!found)
+    throw new Error(`未找到分组「${ref}」。可用分组:${groups.map((g) => `${g.name}(${g.id})`).join(', ') || '无'}`);
   return found;
 }
 

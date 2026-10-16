@@ -4,10 +4,10 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
-import { afterEach, beforeEach, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS, type Project } from '@spark/shared';
-import { ProcessManager } from '../src/core/processManager.js';
+import { afterEach, beforeEach, expect, it } from 'vitest';
 import { LogBufferManager } from '../src/core/logBuffer.js';
+import { ProcessManager } from '../src/core/processManager.js';
 
 let dir: string;
 let project: Project;
@@ -22,16 +22,41 @@ function manager() {
 }
 beforeEach(async () => {
   dir = await fs.mkdtemp(path.join(os.tmpdir(), 'spark-recovery-'));
-  project = { id: 'project', name: 'recovery', type: 'generic', cwd: dir, groupIds: [], autoRestart: false, createdAt: 0,
-    terminals: [{ id: 'main', name: 'main', cwd: '', env: {}, port: null,
-      command: 'while true; do echo still-running; echo still-error >&2; sleep 0.1; done' }] };
+  project = {
+    id: 'project',
+    name: 'recovery',
+    type: 'generic',
+    cwd: dir,
+    groupIds: [],
+    autoRestart: false,
+    createdAt: 0,
+    terminals: [
+      {
+        id: 'main',
+        name: 'main',
+        cwd: '',
+        env: {},
+        port: null,
+        command: 'while true; do echo still-running; echo still-error >&2; sleep 0.1; done',
+      },
+    ],
+  };
 });
 afterEach(async () => {
-  for (const pm of managers.splice(0)) { await pm.stopAll([project]); pm.detach(); }
+  for (const pm of managers.splice(0)) {
+    await pm.stopAll([project]);
+    pm.detach();
+  }
   await fs.rm(dir, { recursive: true, force: true });
 });
 it('管理进程真正退出后项目仍运行；重建管理器恢复状态、持续日志及停止能力', async () => {
-  await promisify(execFile)(process.execPath, ['--import', 'tsx', fileURLToPath(new URL('./fixtures/detachedManager.ts', import.meta.url)), JSON.stringify(project), path.join(dir, 'runtime')]);
+  await promisify(execFile)(process.execPath, [
+    '--import',
+    'tsx',
+    fileURLToPath(new URL('./fixtures/detachedManager.ts', import.meta.url)),
+    JSON.stringify(project),
+    path.join(dir, 'runtime'),
+  ]);
   const { pm, logs } = manager();
   pm.restore([project], settings);
   expect(pm.getState(project.id).status).toBe('running');
@@ -41,7 +66,9 @@ it('管理进程真正退出后项目仍运行；重建管理器恢复状态、�
   logs.clear('project:main');
   await delay(500);
   expect(logs.replay('project:main').some((line) => line.line === 'still-running')).toBe(true);
-  expect(logs.replay('project:main').some((line) => line.stream === 'stderr' && line.line === 'still-error')).toBe(true);
+  expect(logs.replay('project:main').some((line) => line.stream === 'stderr' && line.line === 'still-error')).toBe(
+    true,
+  );
   await pm.stop(project);
   expect(pm.getState(project.id).status).toBe('stopped');
   expect(pm.getState(project.id).pid).toBeNull();
@@ -91,7 +118,14 @@ it('接管的进程随后退出时同步状态并清除记录', async () => {
 });
 
 it('开启退出时停止项目后，真实管理进程退出会清理项目和记录', async () => {
-  await promisify(execFile)(process.execPath, ['--import', 'tsx', fileURLToPath(new URL('./fixtures/detachedManager.ts', import.meta.url)), JSON.stringify(project), path.join(dir, 'runtime'), 'stop']);
+  await promisify(execFile)(process.execPath, [
+    '--import',
+    'tsx',
+    fileURLToPath(new URL('./fixtures/detachedManager.ts', import.meta.url)),
+    JSON.stringify(project),
+    path.join(dir, 'runtime'),
+    'stop',
+  ]);
   expect((await fs.readdir(path.join(dir, 'runtime'))).filter((name) => name.endsWith('.json'))).toHaveLength(0);
   const { pm } = manager();
   pm.restore([project], settings);

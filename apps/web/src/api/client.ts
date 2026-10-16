@@ -25,7 +25,7 @@ function getToken(): Promise<string> {
   const pending = fetch('/api/csrf-token', { cache: 'no-store' })
     .then(async (res) => {
       if (!res.ok) throw new Error(`获取请求令牌失败(HTTP ${res.status})`);
-      const data = await res.json() as { token?: unknown };
+      const data = (await res.json()) as { token?: unknown };
       if (typeof data.token !== 'string' || !data.token) throw new Error('请求令牌响应无效');
       return data.token;
     })
@@ -45,8 +45,8 @@ async function request<T>(method: string, url: string, body?: unknown): Promise<
     const pending = method !== 'GET' ? getToken() : null;
     if (pending) headers['X-Spark-Token'] = await pending;
     const res = await fetch(url, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
-    if (res.ok) return await res.json() as T;
-    const data = await res.json().catch(() => null) as ApiErrorShape | null;
+    if (res.ok) return (await res.json()) as T;
+    const data = (await res.json().catch(() => null)) as ApiErrorShape | null;
     if (pending && res.status === 403 && data?.error === 'FORBIDDEN_TOKEN' && attempt === 0) {
       // 并发请求可能已经刷新了令牌，不清空它们的新缓存。
       if (tokenPromise === pending) tokenPromise = null;
@@ -64,7 +64,12 @@ export interface GroupStartResult {
 }
 
 export type SettingsWithDir = Settings & { dataDir: string };
-export interface AppLogEntry { id: number; timestamp: string; level: 'log' | 'info' | 'warn' | 'error' | 'debug'; message: string }
+export interface AppLogEntry {
+  id: number;
+  timestamp: string;
+  level: 'log' | 'info' | 'warn' | 'error' | 'debug';
+  message: string;
+}
 
 export const api = {
   listProjects: () => request<ProjectWithState[]>('GET', '/api/projects'),
@@ -77,7 +82,11 @@ export const api = {
   restartProject: (id: string) => request<{ ok: true }>('POST', `/api/projects/${id}/restart`),
   terminalAction: (id: string, terminalId: string, action: 'start' | 'stop' | 'restart', force = false) =>
     request<{ ok: true }>('POST', `/api/projects/${id}/terminals/${terminalId}/${action}${force ? '?force=1' : ''}`),
-  clearLogs: (id: string, terminalId?: string) => request<{ ok: true }>('POST', `/api/projects/${id}/logs/clear${terminalId ? `?terminalId=${encodeURIComponent(terminalId)}` : ''}`),
+  clearLogs: (id: string, terminalId?: string) =>
+    request<{ ok: true }>(
+      'POST',
+      `/api/projects/${id}/logs/clear${terminalId ? `?terminalId=${encodeURIComponent(terminalId)}` : ''}`,
+    ),
 
   listGroups: () => request<Group[]>('GET', '/api/groups'),
   createGroup: (name: string, projectIds: string[]) => request<Group>('POST', '/api/groups', { name, projectIds }),

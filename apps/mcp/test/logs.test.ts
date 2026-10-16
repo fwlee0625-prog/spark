@@ -1,11 +1,21 @@
-import { describe, expect, it } from 'vitest';
 import type { LogLine } from '@spark/shared';
+import { describe, expect, it } from 'vitest';
 import { formatLogs, stripAnsi } from '../src/logs.js';
 
-const line = (text: string, stream: LogLine['stream'] = 'stdout', ts = 1730000000000): LogLine => ({ line: text, ts, stream });
+const line = (text: string, stream: LogLine['stream'] = 'stdout', ts = 1730000000000): LogLine => ({
+  line: text,
+  ts,
+  stream,
+});
 
 describe('formatLogs', () => {
-  const lines = [line('\u001b[32mready\u001b[0m'), line('GET / 200'), line('Error: boom', 'stderr'), line('build failed'), line('done')];
+  const lines = [
+    line('\u001b[32mready\u001b[0m'),
+    line('GET / 200'),
+    line('Error: boom', 'stderr'),
+    line('build failed'),
+    line('done'),
+  ];
 
   it('去除 ANSI 并只返回最后 N 行', () => {
     const out = formatLogs(lines, { tail: 2 });

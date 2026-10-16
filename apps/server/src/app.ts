@@ -1,23 +1,23 @@
+import { randomBytes } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import { randomBytes } from 'node:crypto';
-import express from 'express';
 import type { NextFunction, Request, Response } from 'express';
-import { DATA_DIR, PORT, PROJECTS_FILE, SETTINGS_FILE, WEB_DIST } from './config.js';
+import express from 'express';
+import { DATA_DIR, migrateLegacyDataDir, PORT, PROJECTS_FILE, SETTINGS_FILE, WEB_DIST } from './config.js';
+import { AppLogStore } from './core/appLogStore.js';
 import { ConfigStore } from './core/configStore.js';
 import { LogBufferManager } from './core/logBuffer.js';
-import { AppLogStore } from './core/appLogStore.js';
-import { StatusHub } from './core/sseHub.js';
 import { PortMonitor } from './core/portMonitor.js';
 import { ProcessManager } from './core/processManager.js';
-import { projectsRouter } from './routes/projects.js';
-import { groupsRouter } from './routes/groups.js';
+import { StatusHub } from './core/sseHub.js';
+import { appLogsRouter } from './routes/appLogs.js';
 import { detectRouter } from './routes/detect.js';
 import { fsRouter } from './routes/fs.js';
-import { portsRouter } from './routes/ports.js';
-import { settingsRouter } from './routes/settings.js';
-import { appLogsRouter } from './routes/appLogs.js';
+import { groupsRouter } from './routes/groups.js';
 import { mcpRouter } from './routes/mcp.js';
+import { portsRouter } from './routes/ports.js';
+import { projectsRouter } from './routes/projects.js';
+import { settingsRouter } from './routes/settings.js';
 
 export interface SparkContext {
   store: ConfigStore;
@@ -29,6 +29,7 @@ export interface SparkContext {
 }
 
 export async function createApp(): Promise<{ app: express.Express; ctx: SparkContext; csrfToken: string }> {
+  migrateLegacyDataDir();
   const store = new ConfigStore({ projectsFile: PROJECTS_FILE, settingsFile: SETTINGS_FILE });
   await store.init();
   const logs = new LogBufferManager(store.getSettings().logMaxLines);
@@ -94,11 +95,15 @@ export async function createApp(): Promise<{ app: express.Express; ctx: SparkCon
 
   app.use('/api', (_req, res) => res.status(404).json({ error: 'NOT_FOUND' }));
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
     if (res.headersSent) return;
     // JSON 解析失败按 400 返回
-    if (typeof err === 'object' && err !== null && 'type' in err && (err as { type?: string }).type === 'entity.parse.failed') {
+    if (
+      typeof err === 'object' &&
+      err !== null &&
+      'type' in err &&
+      (err as { type?: string }).type === 'entity.parse.failed'
+    ) {
       return res.status(400).json({ error: 'BAD_REQUEST', message: '请求体不是合法 JSON' });
     }
     console.error('[spark] 未处理错误:', err);

@@ -50,7 +50,8 @@ export class LogBufferManager {
   }
 
   pushLine(id: string, raw: string, stream: LogLine['stream']): void {
-    const line = raw.length > MAX_LINE_LENGTH ? raw.slice(0, MAX_LINE_LENGTH) + ' …[单行超长已截断]' : raw.replace(/\r$/, '');
+    const line =
+      raw.length > MAX_LINE_LENGTH ? raw.slice(0, MAX_LINE_LENGTH) + ' …[单行超长已截断]' : raw.replace(/\r$/, '');
     const entry: LogLine = { line, ts: Date.now(), stream };
     const buf = this.bufferFor(id);
     buf.push(entry);

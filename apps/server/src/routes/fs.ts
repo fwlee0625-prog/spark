@@ -1,8 +1,9 @@
+import type { Dirent } from 'node:fs';
 import fsp from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { Router } from 'express';
 import type { FsDirEntry, FsListing } from '@spark/shared';
+import { Router } from 'express';
 import { asyncHandler } from './util.js';
 
 /** GET /api/fs/list?path=…&hidden=1 → 只读目录列表(文件夹选择器用) */
@@ -18,7 +19,7 @@ export function fsRouter(): Router {
       const expanded = raw.startsWith('~') ? path.join(os.homedir(), raw.slice(1)) : raw;
       const dir = path.resolve(expanded || os.homedir());
 
-      let entries;
+      let entries: Dirent[];
       try {
         entries = await fsp.readdir(dir, { withFileTypes: true });
       } catch (err) {

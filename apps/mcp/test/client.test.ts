@@ -11,7 +11,10 @@ describe('SparkClient', () => {
   });
 
   it('修改类请求先取令牌并携带', async () => {
-    const f = vi.fn<typeof fetch>().mockResolvedValueOnce(json({ token: 't1' })).mockResolvedValueOnce(json({ ok: true }));
+    const f = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(json({ token: 't1' }))
+      .mockResolvedValueOnce(json({ ok: true }));
     await new SparkClient('http://x', f).post('/api/projects/p/start');
     expect(f.mock.calls[1]![1]).toMatchObject({ method: 'POST', headers: { 'X-Spark-Token': 't1' } });
   });
@@ -28,8 +31,14 @@ describe('SparkClient', () => {
   });
 
   it('其他错误不重试并抛出带状态码的错误', async () => {
-    const f = vi.fn<typeof fetch>().mockResolvedValueOnce(json({ token: 't' })).mockResolvedValueOnce(json({ error: 'PORT_IN_USE', message: '端口被占用' }, 409));
-    await expect(new SparkClient('http://x', f).post('/api/x')).rejects.toMatchObject({ status: 409, message: '端口被占用' });
+    const f = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(json({ token: 't' }))
+      .mockResolvedValueOnce(json({ error: 'PORT_IN_USE', message: '端口被占用' }, 409));
+    await expect(new SparkClient('http://x', f).post('/api/x')).rejects.toMatchObject({
+      status: 409,
+      message: '端口被占用',
+    });
     expect(f).toHaveBeenCalledTimes(2);
   });
 

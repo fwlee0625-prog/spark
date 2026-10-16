@@ -1,8 +1,7 @@
 import { Router } from 'express';
-import type { AppLogLevel } from '../core/appLogStore.js';
-import type { AppLogStore } from '../core/appLogStore.js';
-import { asyncHandler } from './util.js';
+import type { AppLogLevel, AppLogStore } from '../core/appLogStore.js';
 import type { SparkContext } from './projects.js';
+import { asyncHandler } from './util.js';
 
 const LEVELS: AppLogLevel[] = ['log', 'info', 'warn', 'error', 'debug'];
 
@@ -19,9 +18,12 @@ export function appLogsRouter(ctx: SparkContext & { appLogs: AppLogStore }): Rou
     }
     res.json(ctx.appLogs.list(limit, level as AppLogLevel | undefined));
   });
-  router.delete('/', asyncHandler(async (_req, res) => {
-    ctx.appLogs.clear();
-    res.json({ ok: true });
-  }));
+  router.delete(
+    '/',
+    asyncHandler(async (_req, res) => {
+      ctx.appLogs.clear();
+      res.json({ ok: true });
+    }),
+  );
   return router;
 }

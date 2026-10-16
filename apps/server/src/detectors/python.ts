@@ -13,7 +13,8 @@ function readText(dir: string, file: string): string {
 /** Python 项目识别:虚拟环境 + 入口文件 → 预填启动命令 */
 export function detectPython(dir: string): DetectResult | null {
   const has = (f: string) => fs.existsSync(path.join(dir, f));
-  const isPython = has('manage.py') || has('app.py') || has('main.py') || has('requirements.txt') || has('pyproject.toml');
+  const isPython =
+    has('manage.py') || has('app.py') || has('main.py') || has('requirements.txt') || has('pyproject.toml');
   if (!isPython) return null;
 
   const venv = (['.venv', 'venv'] as const).find((v) => has(v)) ?? null;

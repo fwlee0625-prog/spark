@@ -8,3 +8,4 @@ data/
 *.tmp
 .zcode/
 .pnpm-store
+*.corrupt-*

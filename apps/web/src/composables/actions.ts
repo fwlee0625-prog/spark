@@ -12,7 +12,9 @@ export async function startProjectAction(id: string, name: string): Promise<void
     if (err instanceof ApiError && err.status === 409 && err.data.error === 'PORT_IN_USE') {
       const st = err.data.port;
       const who =
-        st?.source === 'project' ? `项目「${st.projectName ?? '?'}」` : `外部进程 ${st?.pid ?? '?'} (${st?.processName ?? '未知'})`;
+        st?.source === 'project'
+          ? `项目「${st.projectName ?? '?'}」`
+          : `外部进程 ${st?.pid ?? '?'} (${st?.processName ?? '未知'})`;
       const ok = await confirmAction({
         title: '端口被占用',
         message: `端口 ${st?.port} 已被${who}占用。\n仍要强制启动「${name}」吗?`,

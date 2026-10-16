@@ -1,10 +1,10 @@
+import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import { randomUUID } from 'node:crypto';
 import type { TerminalConfig } from '@spark/shared';
 import type { RequestHandler } from 'express';
-import type { SparkContext } from './projects.js';
 import type { RunningGroup } from '../core/portStatus.js';
+import type { SparkContext } from './projects.js';
 
 /** 包装异步 handler,拒绝的 Promise 转交 express 错误处理 */
 export function asyncHandler(fn: RequestHandler): RequestHandler {
@@ -42,7 +42,6 @@ export function normalizeStringArray(value: unknown): string[] {
   return value.filter((v): v is string => typeof v === 'string');
 }
 
-
 export function normalizeTerminals(value: unknown, projectCwd: string): TerminalConfig[] {
   if (!Array.isArray(value) || !value.length || value.length > 20) throw new Error('请配置 1-20 个终端');
   const ids = new Set<string>();
@@ -56,7 +55,8 @@ export function normalizeTerminals(value: unknown, projectCwd: string): Terminal
     ids.add(id);
     const number = row.number;
     if (number !== undefined) {
-      if (typeof number !== 'number' || !Number.isSafeInteger(number) || number < 1 || numbers.has(number)) throw new Error('终端编号无效或重复');
+      if (typeof number !== 'number' || !Number.isSafeInteger(number) || number < 1 || numbers.has(number))
+        throw new Error('终端编号无效或重复');
       numbers.add(number);
     }
     const name = String(row.name ?? '').trim();
@@ -64,10 +64,19 @@ export function normalizeTerminals(value: unknown, projectCwd: string): Terminal
     const cwd = String(row.cwd ?? '').trim();
     if (!name || !command) throw new Error('每个终端的名称和启动命令均必填');
     const absoluteCwd = path.resolve(projectCwd, cwd || '.');
-    if (!fs.existsSync(absoluteCwd) || !fs.statSync(absoluteCwd).isDirectory()) throw new Error(`终端「${name}」目录不存在`);
+    if (!fs.existsSync(absoluteCwd) || !fs.statSync(absoluteCwd).isDirectory())
+      throw new Error(`终端「${name}」目录不存在`);
     const port = normalizePort(row.port);
     if (port !== null && ports.has(port)) throw new Error('同一项目的终端不能配置重复端口');
     if (port !== null) ports.add(port);
-    return { id, name, cwd, command, port, ...(number === undefined ? {} : { number: number as number }), env: normalizeEnv(row.env) };
+    return {
+      id,
+      name,
+      cwd,
+      command,
+      port,
+      ...(number === undefined ? {} : { number: number as number }),
+      env: normalizeEnv(row.env),
+    };
   });
 }

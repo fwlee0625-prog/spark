@@ -1,6 +1,6 @@
 import { DEFAULT_SETTINGS, type Project } from '@spark/shared';
-import { ProcessManager } from '../../src/core/processManager.js';
 import { LogBufferManager } from '../../src/core/logBuffer.js';
+import { ProcessManager } from '../../src/core/processManager.js';
 
 const project = JSON.parse(process.argv[2]) as Project;
 const pm = new ProcessManager(new LogBufferManager(100), () => {}, process.argv[3]);

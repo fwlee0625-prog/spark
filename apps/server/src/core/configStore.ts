@@ -1,7 +1,7 @@
+import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import fsp from 'node:fs/promises';
 import path from 'node:path';
-import { randomUUID } from 'node:crypto';
 import type { Group, Project, Settings } from '@spark/shared';
 import { DEFAULT_SETTINGS } from '@spark/shared';
 
@@ -18,9 +18,24 @@ export interface ConfigStoreOptions {
 function isProject(v: unknown): v is Project {
   if (typeof v !== 'object' || v === null) return false;
   const p = v as Record<string, unknown>;
-  return typeof p.id === 'string' && typeof p.name === 'string' && typeof p.cwd === 'string' && Array.isArray(p.terminals) && p.terminals.length > 0 && p.terminals.every((t) =>
-    t && typeof t === 'object' && typeof t.id === 'string' && typeof t.command === 'string' &&
-    typeof t.name === 'string' && typeof t.cwd === 'string' && t.env && typeof t.env === 'object');
+  return (
+    typeof p.id === 'string' &&
+    typeof p.name === 'string' &&
+    typeof p.cwd === 'string' &&
+    Array.isArray(p.terminals) &&
+    p.terminals.length > 0 &&
+    p.terminals.every(
+      (t) =>
+        t &&
+        typeof t === 'object' &&
+        typeof t.id === 'string' &&
+        typeof t.command === 'string' &&
+        typeof t.name === 'string' &&
+        typeof t.cwd === 'string' &&
+        t.env &&
+        typeof t.env === 'object',
+    )
+  );
 }
 
 function isGroup(v: unknown): v is Group {
@@ -101,7 +116,11 @@ export class ConfigStore {
 
   async addProject(input: Omit<Project, 'id' | 'createdAt'>): Promise<Project> {
     return this.enqueue(async () => {
-      const project: Project = { ...structuredClone(input), id: `p_${randomUUID().slice(0, 8)}`, createdAt: Date.now() };
+      const project: Project = {
+        ...structuredClone(input),
+        id: `p_${randomUUID().slice(0, 8)}`,
+        createdAt: Date.now(),
+      };
       await this.persistProjectsWith([...this.projects, project], this.groups);
       this.projects.push(project);
       return structuredClone(project);

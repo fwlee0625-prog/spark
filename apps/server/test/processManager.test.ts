@@ -2,8 +2,8 @@ import { execFileSync } from 'node:child_process';
 import fsp from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { Project, Settings, StatusEvent } from '@spark/shared';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { LogBufferManager } from '../src/core/logBuffer.js';
 import { ProcessManager } from '../src/core/processManager.js';
 
@@ -95,7 +95,10 @@ describe('ProcessManager', () => {
     const deadline = Date.now() + 3000;
     let text = '';
     while (Date.now() < deadline) {
-      text = logs.replay(`${project.id}:main`).map((l) => l.line).join('\n');
+      text = logs
+        .replay(`${project.id}:main`)
+        .map((l) => l.line)
+        .join('\n');
       if (text.includes('hello-spark') && text.includes('err-spark')) break;
       await new Promise((r) => setTimeout(r, 50));
     }
@@ -128,8 +131,18 @@ describe('ProcessManager', () => {
       await waitForStatus(pm, project.id, 'running');
       const states = pm.terminalStates(project);
       expect(states[0].pid).not.toBe(states[1].pid);
-      expect(logs.replay(`${project.id}:main`).map((l) => l.line).join('\n')).not.toContain('backend');
-      expect(logs.replay(`${project.id}:backend`).map((l) => l.line).join('\n')).toContain('backend');
+      expect(
+        logs
+          .replay(`${project.id}:main`)
+          .map((l) => l.line)
+          .join('\n'),
+      ).not.toContain('backend');
+      expect(
+        logs
+          .replay(`${project.id}:backend`)
+          .map((l) => l.line)
+          .join('\n'),
+      ).toContain('backend');
       expect(pm.runningGroups().every((g) => g.id === project.id && g.cwd === dir)).toBe(true);
       await pm.stop(project, 'backend');
       expect(pm.getState(project.id).status).toBe('partial');
@@ -165,9 +178,10 @@ describe('ProcessManager', () => {
       await pm.restart(project, settings, 'backend');
       await waitForStatus(pm, project.id, 'running');
       expect(pm.terminalStates(project)[0].pid).toBe(pid);
-    } finally { await pm.stop(project); }
+    } finally {
+      await pm.stop(project);
+    }
   });
-
 
   it('各终端环境变量独立生效，空配置不包含其他终端的变量', async () => {
     const logs = new LogBufferManager(100);
@@ -182,11 +196,16 @@ describe('ProcessManager', () => {
     try {
       pm.start(project, settings);
       await waitForStatus(pm, project.id, 'running');
-      const output = (key: string) => logs.replay(key).filter((line) => line.line.startsWith('env:')).map((line) => line.line);
+      const output = (key: string) =>
+        logs
+          .replay(key)
+          .filter((line) => line.line.startsWith('env:'))
+          .map((line) => line.line);
       expect(output(`${project.id}:main`)).toEqual(['env:frontend']);
       expect(output(`${project.id}:api`)).toEqual(['env:backend']);
       expect(output(`${project.id}:empty`)).toEqual(['env:']);
-    } finally { await pm.stop(project); }
+    } finally {
+      await pm.stop(project);
+    }
   });
-
 });

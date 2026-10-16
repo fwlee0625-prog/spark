@@ -1,8 +1,8 @@
-import { Router } from 'express';
 import type { ShellMode } from '@spark/shared';
+import { Router } from 'express';
 import { DATA_DIR } from '../config.js';
-import { asyncHandler } from './util.js';
 import type { SparkContext } from './projects.js';
+import { asyncHandler } from './util.js';
 
 const SHELL_MODES: ShellMode[] = ['login', 'non-login', 'direct'];
 

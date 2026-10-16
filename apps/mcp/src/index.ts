@@ -1,2 +1,2 @@
-export { SparkClient, SparkApiError } from './client.js';
+export { SparkApiError, SparkClient } from './client.js';
 export { createMcpServer } from './server.js';

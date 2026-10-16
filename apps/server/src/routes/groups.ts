@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { getPortStatus } from '../core/portStatus.js';
-import { asyncHandler, normalizeStringArray, runningGroupsWithCwd } from './util.js';
 import type { SparkContext } from './projects.js';
+import { asyncHandler, normalizeStringArray, runningGroupsWithCwd } from './util.js';
 
 const GROUP_START_INTERVAL_MS = 300;
 
@@ -74,7 +74,11 @@ export function groupsRouter(ctx: SparkContext): Router {
           if (terminal.port == null || ['running', 'starting'].includes(terminal.status)) continue;
           const status = await getPortStatus(terminal.port, runningGroupsWithCwd(ctx));
           if (status.occupied) {
-            blocked.push({ id: project.id, name: project.name, reason: `终端「${terminal.name}」端口 ${terminal.port} 已被占用` });
+            blocked.push({
+              id: project.id,
+              name: project.name,
+              reason: `终端「${terminal.name}」端口 ${terminal.port} 已被占用`,
+            });
             conflict = true;
             break;
           }
@@ -98,7 +102,9 @@ export function groupsRouter(ctx: SparkContext): Router {
     asyncHandler(async (req, res) => {
       const group = ctx.store.getGroup(String(req.params.id));
       if (!group) return res.status(404).json({ error: 'NOT_FOUND', message: '分组不存在' });
-      const projects = group.projectIds.map((id) => ctx.store.getProject(id)).filter((p): p is NonNullable<typeof p> => p != null);
+      const projects = group.projectIds
+        .map((id) => ctx.store.getProject(id))
+        .filter((p): p is NonNullable<typeof p> => p != null);
       await Promise.allSettled(projects.map((p) => ctx.pm.stop(p)));
       res.json({ ok: true });
     }),

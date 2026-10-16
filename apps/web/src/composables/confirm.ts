@@ -19,7 +19,12 @@ const state = reactive<ConfirmState>({
 });
 
 /** 全局二次确认,返回 Promise<boolean> */
-export function confirmAction(opts: { title?: string; message: string; confirmText?: string; danger?: boolean }): Promise<boolean> {
+export function confirmAction(opts: {
+  title?: string;
+  message: string;
+  confirmText?: string;
+  danger?: boolean;
+}): Promise<boolean> {
   return new Promise((resolve) => {
     state.open = true;
     state.title = opts.title ?? '确认操作';

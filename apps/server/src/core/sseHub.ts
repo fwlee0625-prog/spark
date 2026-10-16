@@ -1,5 +1,5 @@
-import type { Response } from 'express';
 import type { StatusEvent } from '@spark/shared';
+import type { Response } from 'express';
 
 const HEARTBEAT_MS = 15000;
 

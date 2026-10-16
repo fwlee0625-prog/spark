@@ -1,3 +1,4 @@
+import type { Stats } from 'node:fs';
 import fsp from 'node:fs/promises';
 import path from 'node:path';
 import { Router } from 'express';
@@ -14,7 +15,7 @@ export function detectRouter(): Router {
       const raw = String((req.body as Record<string, unknown> | undefined)?.dir ?? '').trim();
       if (!raw) return res.status(400).json({ error: 'BAD_REQUEST', message: 'dir 必填' });
       const dir = path.resolve(raw);
-      let stat;
+      let stat: Stats;
       try {
         stat = await fsp.stat(dir);
       } catch {

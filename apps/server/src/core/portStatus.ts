@@ -1,7 +1,15 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import type { PortStatus } from '@spark/shared';
-import { isPortFree, listPortProcesses, pidCwd, pidPgid, listListeningProcesses, listProcessRelations, type ProcessRelation } from './portChecker.js';
+import {
+  isPortFree,
+  listListeningProcesses,
+  listPortProcesses,
+  listProcessRelations,
+  type ProcessRelation,
+  pidCwd,
+  pidPgid,
+} from './portChecker.js';
 
 /** macOS 的 /tmp 是 /private/tmp 的符号链接,lsof 返回真实路径,比较前统一归一化 */
 function realPath(p: string): string {
@@ -58,8 +66,11 @@ export async function getPortStatus(port: number, runningGroups: RunningGroup[])
   };
 }
 
-
-export function findProcessOwner(pid: number, groups: RunningGroup[], relations: ProcessRelation[]): RunningGroup | undefined {
+export function findProcessOwner(
+  pid: number,
+  groups: RunningGroup[],
+  relations: ProcessRelation[],
+): RunningGroup | undefined {
   const byPid = new Map(relations.map((p) => [p.pid, p]));
   const visited = new Set<number>();
   let current = pid;
@@ -82,9 +93,16 @@ export async function scanManagedPorts(groups: RunningGroup[]): Promise<PortStat
     const owner = findProcessOwner(listener.pid, groups, relations);
     if (!owner) continue;
     if (!ports.has(listener.port)) {
-      ports.set(listener.port, { port: listener.port, occupied: true, source: 'project',
-        projectId: owner.id, terminalId: owner.terminalId, pid: listener.pid, processName: listener.command,
-        processes: listeners.filter((p) => p.port === listener.port).map(({ pid, command }) => ({ pid, command })) });
+      ports.set(listener.port, {
+        port: listener.port,
+        occupied: true,
+        source: 'project',
+        projectId: owner.id,
+        terminalId: owner.terminalId,
+        pid: listener.pid,
+        processName: listener.command,
+        processes: listeners.filter((p) => p.port === listener.port).map(({ pid, command }) => ({ pid, command })),
+      });
     }
   }
   return [...ports.values()].sort((a, b) => a.port - b.port);

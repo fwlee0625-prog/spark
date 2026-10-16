@@ -1,12 +1,12 @@
-import { projectTerminals, terminalKey } from '@spark/shared';
+import { type ChildProcess, spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import { spawn, type ChildProcess } from 'node:child_process';
-import type { Project, ProjectStatus, RuntimeState, TerminalWithState, Settings, StatusEvent } from '@spark/shared';
+import type { Project, ProjectStatus, RuntimeState, Settings, StatusEvent, TerminalWithState } from '@spark/shared';
+import { projectTerminals, terminalKey } from '@spark/shared';
 import type { LogBufferManager } from './logBuffer.js';
 import { isPortFree, listPortProcesses, pidCwd } from './portChecker.js';
-import { ProcessRecords, processIdentity } from './processRecords.js';
 import type { RunningGroup } from './portStatus.js';
+import { ProcessRecords, processIdentity } from './processRecords.js';
 
 type ProcessSpec = Omit<Project, 'terminals'> & { command: string; port: number | null; env: Record<string, string> };
 
@@ -102,7 +102,12 @@ class TerminalProcessManager {
     return e;
   }
 
-  getState(id: string): { status: ProjectStatus; pid: number | null; startedAt: number | null; exitCode: number | null } {
+  getState(id: string): {
+    status: ProjectStatus;
+    pid: number | null;
+    startedAt: number | null;
+    exitCode: number | null;
+  } {
     const e = this.entries.get(id);
     if (!e) return { status: 'stopped', pid: null, startedAt: null, exitCode: null };
     return { status: e.status, pid: e.pid, startedAt: e.startedAt, exitCode: e.exitCode };
@@ -187,7 +192,14 @@ class TerminalProcessManager {
     e.child = child;
     e.pid = child.pid ?? null;
     this.logs.pushLine(project.id, `[spark] 启动: ${project.command}`, 'stdout');
-    this.onStatus({ type: 'status', id: project.id, status: 'starting', pid: e.pid, startedAt: e.startedAt, exitCode: null });
+    this.onStatus({
+      type: 'status',
+      id: project.id,
+      status: 'starting',
+      pid: e.pid,
+      startedAt: e.startedAt,
+      exitCode: null,
+    });
 
     child.stdout?.on('data', (d: Buffer) => this.logs.appendChunk(project.id, d.toString('utf8'), 'stdout'));
     child.stderr?.on('data', (d: Buffer) => this.logs.appendChunk(project.id, d.toString('utf8'), 'stderr'));
@@ -212,13 +224,23 @@ class TerminalProcessManager {
     if (this.records && e.pid) {
       e.identity = processIdentity(e.pid) ?? undefined;
       try {
-        if (e.identity) this.records.write({ id: project.id, pid: e.pid, identity: e.identity,
-          cwd: fs.realpathSync(project.cwd), startedAt: e.startedAt! });
+        if (e.identity)
+          this.records.write({
+            id: project.id,
+            pid: e.pid,
+            identity: e.identity,
+            cwd: fs.realpathSync(project.cwd),
+            startedAt: e.startedAt!,
+          });
         e.stopLogs = this.records.follow(project.id, this.logs);
       } catch (error) {
         // 无法保存记录时回滚本次启动，避免留下无法恢复管理的项目。
         e.manualStop = true;
-        try { process.kill(-e.pid, 'SIGKILL'); } catch { /* 已退出 */ }
+        try {
+          process.kill(-e.pid, 'SIGKILL');
+        } catch {
+          /* 已退出 */
+        }
         throw error;
       }
     }
@@ -228,7 +250,12 @@ class TerminalProcessManager {
     }, START_TO_RUNNING_MS);
   }
 
-  private handleExit(project: ProcessSpec, settings: Settings, code: number | null, signal: NodeJS.Signals | null): void {
+  private handleExit(
+    project: ProcessSpec,
+    settings: Settings,
+    code: number | null,
+    signal: NodeJS.Signals | null,
+  ): void {
     if (this.detached) return;
     const e = this.entry(project.id);
     e.stopLogs?.();
@@ -357,14 +384,22 @@ class TerminalProcessManager {
     for (const proc of procs) {
       const cwd = await pidCwd(proc.pid);
       if (cwd && (cwd === projectDir || cwd.startsWith(projectDir + path.sep))) {
-        this.logs.pushLine(project.id, `[spark] 兜底清理: 杀掉占用端口 ${port} 的进程 ${proc.pid} (${proc.command})`, 'stdout');
+        this.logs.pushLine(
+          project.id,
+          `[spark] 兜底清理: 杀掉占用端口 ${port} 的进程 ${proc.pid} (${proc.command})`,
+          'stdout',
+        );
         try {
           process.kill(proc.pid, 'SIGKILL');
         } catch {
           /* 已退出 */
         }
       } else {
-        this.logs.pushLine(project.id, `[spark] 端口 ${port} 仍被外部进程 ${proc.pid} (${proc.command}) 占用,已跳过清理`, 'stderr');
+        this.logs.pushLine(
+          project.id,
+          `[spark] 端口 ${port} 仍被外部进程 ${proc.pid} (${proc.command}) 占用,已跳过清理`,
+          'stderr',
+        );
       }
     }
   }
@@ -381,14 +416,25 @@ class TerminalProcessManager {
 
   private waitExit(e: Entry, ms: number): Promise<boolean> {
     if (e.child && (e.child.exitCode !== null || e.child.signalCode !== null)) return Promise.resolve(true);
-    if (!e.child) return new Promise((resolve) => {
-      const deadline = Date.now() + ms;
-      const timer = setInterval(() => {
-        let alive = false;
-        try { if (e.pid) { process.kill(-e.pid, 0); alive = true; } } catch { /* 已退出 */ }
-        if (!alive || Date.now() >= deadline) { clearInterval(timer); resolve(!alive); }
-      }, 100);
-    });
+    if (!e.child)
+      return new Promise((resolve) => {
+        const deadline = Date.now() + ms;
+        const timer = setInterval(() => {
+          let alive = false;
+          try {
+            if (e.pid) {
+              process.kill(-e.pid, 0);
+              alive = true;
+            }
+          } catch {
+            /* 已退出 */
+          }
+          if (!alive || Date.now() >= deadline) {
+            clearInterval(timer);
+            resolve(!alive);
+          }
+        }, 100);
+      });
     return new Promise((resolve) => {
       const timer = setTimeout(() => resolve(false), ms);
       e.child!.once('exit', () => {
@@ -399,46 +445,63 @@ class TerminalProcessManager {
   }
 }
 
-
 /** 项目级协调器；每个终端沿用独立进程组的生命周期管理。 */
 export class ProcessManager {
   private runner: TerminalProcessManager;
   private projects = new Map<string, Project>();
   private discoveredPorts = new Map<string, { pid: number; ports: number[] }>();
 
-  constructor(private logs: LogBufferManager, private onStatus: (evt: StatusEvent) => void, runtimeDirectory?: string) {
-    this.runner = new TerminalProcessManager(logs, (evt) => {
-      const project = [...this.projects.values()].find((p) =>
-        projectTerminals(p).some((t) => terminalKey(p.id, t.id) === evt.id));
-      if (project) this.onStatus({ type: 'status', id: project.id, ...this.getState(project.id) });
-    }, runtimeDirectory ? new ProcessRecords(runtimeDirectory) : undefined);
+  constructor(
+    private logs: LogBufferManager,
+    private onStatus: (evt: StatusEvent) => void,
+    runtimeDirectory?: string,
+  ) {
+    this.runner = new TerminalProcessManager(
+      logs,
+      (evt) => {
+        const project = [...this.projects.values()].find((p) =>
+          projectTerminals(p).some((t) => terminalKey(p.id, t.id) === evt.id),
+        );
+        if (project) this.onStatus({ type: 'status', id: project.id, ...this.getState(project.id) });
+      },
+      runtimeDirectory ? new ProcessRecords(runtimeDirectory) : undefined,
+    );
   }
 
   restore(projects: Project[], settings: Settings): void {
     for (const project of projects) {
       this.projects.set(project.id, project);
       for (const spec of this.specs(project)) {
-        try { this.runner.restore(spec, settings); }
-        catch (error) { console.warn(`[spark] 恢复 ${spec.id} 失败:`, error); }
+        try {
+          this.runner.restore(spec, settings);
+        } catch (error) {
+          console.warn(`[spark] 恢复 ${spec.id} 失败:`, error);
+        }
       }
     }
   }
 
-  detach(): void { this.runner.detach(); }
+  detach(): void {
+    this.runner.detach();
+  }
 
   async shutdown(projects: Project[], settings: Settings): Promise<void> {
     try {
       if (settings.stopProjectsOnExit) await this.stopAll(projects);
-    } finally { this.detach(); }
+    } finally {
+      this.detach();
+    }
   }
-
 
   terminalStates(project: Project): TerminalWithState[] {
     return projectTerminals(project).map((t) => {
       const key = terminalKey(project.id, t.id);
       const state = this.runner.getState(key);
       const discovered = this.discoveredPorts.get(key);
-      const listeningPorts = state.pid !== null && discovered?.pid === state.pid && ['running', 'starting'].includes(state.status) ? discovered.ports : [];
+      const listeningPorts =
+        state.pid !== null && discovered?.pid === state.pid && ['running', 'starting'].includes(state.status)
+          ? discovered.ports
+          : [];
       return { ...t, ...state, listeningPorts };
     });
   }
@@ -449,11 +512,21 @@ export class ProcessManager {
     const active = terminalStates.filter((t) => t.status === 'running' || t.status === 'starting');
     const failed = terminalStates.find((t) => t.status === 'failed');
     const status: ProjectStatus = active.length
-      ? active.length < terminalStates.length ? 'partial' : active.some((t) => t.status === 'starting') ? 'starting' : 'running'
-      : failed ? 'failed' : 'stopped';
-    return { status, pid: active[0]?.pid ?? null,
+      ? active.length < terminalStates.length
+        ? 'partial'
+        : active.some((t) => t.status === 'starting')
+          ? 'starting'
+          : 'running'
+      : failed
+        ? 'failed'
+        : 'stopped';
+    return {
+      status,
+      pid: active[0]?.pid ?? null,
       startedAt: active.length ? Math.min(...active.map((t) => t.startedAt!)) : null,
-      exitCode: failed?.exitCode ?? terminalStates[0]?.exitCode ?? null, terminalStates };
+      exitCode: failed?.exitCode ?? terminalStates[0]?.exitCode ?? null,
+      terminalStates,
+    };
   }
 
   isRunning(id: string): boolean {
@@ -464,8 +537,14 @@ export class ProcessManager {
     const terminals = projectTerminals(project).filter((t) => !terminalId || t.id === terminalId);
     if (!terminals.length) throw new Error('终端不存在');
     const { terminals: _terminals, ...config } = project;
-    return terminals.map((t) => ({ ...config, id: terminalKey(project.id, t.id),
-      cwd: path.resolve(project.cwd, t.cwd || '.'), command: t.command, port: t.port, env: t.env }));
+    return terminals.map((t) => ({
+      ...config,
+      id: terminalKey(project.id, t.id),
+      cwd: path.resolve(project.cwd, t.cwd || '.'),
+      command: t.command,
+      port: t.port,
+      env: t.env,
+    }));
   }
 
   start(project: Project, settings: Settings, terminalId?: string): void {
@@ -489,33 +568,48 @@ export class ProcessManager {
     return this.runner.runningGroups().map((g) => {
       for (const p of this.projects.values()) {
         const spec = this.specs(p).find((s) => s.id === g.id);
-        if (spec) return { ...g, id: p.id, terminalId: p.terminals.find((t) => terminalKey(p.id, t.id) === spec.id)!.id, cwd: spec.cwd };
+        if (spec)
+          return {
+            ...g,
+            id: p.id,
+            terminalId: p.terminals.find((t) => terminalKey(p.id, t.id) === spec.id)!.id,
+            cwd: spec.cwd,
+          };
       }
       return g;
     });
   }
 
-  updateListeningPorts(groups: RunningGroup[], ports: { projectId?: string; terminalId?: string; port: number }[]): void {
+  updateListeningPorts(
+    groups: RunningGroup[],
+    ports: { projectId?: string; terminalId?: string; port: number }[],
+  ): void {
     const changed = new Set<string>();
     for (const group of groups) {
       if (!group.terminalId) continue;
       const key = terminalKey(group.id, group.terminalId);
       if (this.runner.getState(key).pid !== group.pgid) continue;
-      const next = [...new Set(ports.filter((p) => p.projectId === group.id && p.terminalId === group.terminalId).map((p) => p.port))].sort((a, b) => a - b);
+      const next = [
+        ...new Set(
+          ports.filter((p) => p.projectId === group.id && p.terminalId === group.terminalId).map((p) => p.port),
+        ),
+      ].sort((a, b) => a - b);
       const previous = this.discoveredPorts.get(key);
       this.discoveredPorts.set(key, { pid: group.pgid, ports: next });
-      if ((previous?.ports ?? []).join(',') !== next.join(',') || (previous?.pid !== group.pgid && next.length > 0)) changed.add(group.id);
+      if ((previous?.ports ?? []).join(',') !== next.join(',') || (previous?.pid !== group.pgid && next.length > 0))
+        changed.add(group.id);
     }
     for (const id of changed) this.onStatus({ type: 'status', id, ...this.getState(id) });
   }
 
   forget(id: string): void {
     const project = this.projects.get(id);
-    if (project) for (const spec of this.specs(project)) {
-      this.runner.forget(spec.id);
-      this.discoveredPorts.delete(spec.id);
-      this.logs.dispose(spec.id);
-    }
+    if (project)
+      for (const spec of this.specs(project)) {
+        this.runner.forget(spec.id);
+        this.discoveredPorts.delete(spec.id);
+        this.logs.dispose(spec.id);
+      }
     this.projects.delete(id);
   }
 

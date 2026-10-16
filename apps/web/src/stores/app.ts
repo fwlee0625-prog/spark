@@ -1,5 +1,5 @@
-import { reactive } from 'vue';
 import type { Group, ProjectWithState, Settings, StatusEvent } from '@spark/shared';
+import { reactive } from 'vue';
 import { api, type SettingsWithDir } from '../api/client.js';
 
 interface AppState {
@@ -39,7 +39,10 @@ export async function initStore(): Promise<void> {
 /** 订阅状态变更推送,实时刷新状态点 */
 function connectEvents(): void {
   const es = new EventSource('/api/events');
-  es.onopen = () => { store.connected = true; void refreshProjects(); };
+  es.onopen = () => {
+    store.connected = true;
+    void refreshProjects();
+  };
   es.onerror = () => (store.connected = false);
   es.onmessage = (e) => {
     const evt = JSON.parse(e.data) as StatusEvent;

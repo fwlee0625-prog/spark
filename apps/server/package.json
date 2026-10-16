@@ -1,9 +1,11 @@
 {
   "name": "@spark/server",
   "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
   "type": "module",
   "scripts": {
-    "dev": "SPARK_PORT=7789 tsx watch src/index.ts",
+    "dev": "SPARK_PORT=7789 SPARK_DATA_DIR=./data tsx watch src/index.ts",
     "start": "tsx src/index.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"

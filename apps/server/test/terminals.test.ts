@@ -1,6 +1,6 @@
 import os from 'node:os';
-import { describe, expect, it } from 'vitest';
 import { terminalKey } from '@spark/shared';
+import { describe, expect, it } from 'vitest';
 import { normalizeTerminals } from '../src/routes/util.js';
 
 const base = { id: 'main', name: '前端', cwd: '', command: 'pnpm dev', port: 5173, env: {} };
@@ -13,7 +13,15 @@ describe('终端配置', () => {
     expect(normalizeTerminals([base], os.tmpdir())).toEqual([base]);
     expect(normalizeTerminals([{ ...base, number: 3 }], os.tmpdir())[0].number).toBe(3);
     expect(() => normalizeTerminals([{ ...base, number: 0 }], os.tmpdir())).toThrow('编号');
-    expect(() => normalizeTerminals([{ ...base, number: 3 }, { ...base, id: 'api', port: null, number: 3 }], os.tmpdir())).toThrow('编号');
+    expect(() =>
+      normalizeTerminals(
+        [
+          { ...base, number: 3 },
+          { ...base, id: 'api', port: null, number: 3 },
+        ],
+        os.tmpdir(),
+      ),
+    ).toThrow('编号');
     expect(normalizeTerminals([{ ...base, cwd: '.' }], os.tmpdir())[0].cwd).toBe('.');
     expect(() => normalizeTerminals([], os.tmpdir())).toThrow();
     expect(() => normalizeTerminals([{ ...base, command: ' ' }], os.tmpdir())).toThrow('启动命令');
