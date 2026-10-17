@@ -28,7 +28,7 @@ onBeforeUnmount(() => window.clearInterval(timer));
 </script>
 
 <template>
-  <section class="px-8 py-7">
+  <section class="data-page px-8 py-7">
     <div class="flex flex-wrap items-start justify-between gap-4">
       <div>
         <h1 class="text-xl font-semibold text-slate-800">软件日志</h1>
@@ -51,7 +51,7 @@ onBeforeUnmount(() => window.clearInterval(timer));
       <span class="text-xs text-slate-400">最近 {{ entries.length }} 条 · 每 5 秒自动刷新</span>
     </div>
 
-    <div class="glass-card mt-3 overflow-hidden rounded-2xl">
+    <div class="data-scroll glass-card mt-3 rounded-2xl">
       <div v-for="entry in filtered" :key="entry.id" class="grid grid-cols-[150px_58px_minmax(0,1fr)] gap-3 border-b border-slate-100/80 px-4 py-3 last:border-0 max-sm:grid-cols-[1fr_auto]">
         <time class="pt-0.5 font-mono text-xs text-slate-400">{{ formatTime(entry.timestamp) }}</time>
         <span class="w-fit rounded-md px-2 py-0.5 text-[11px] font-semibold uppercase" :class="entry.level === 'error' ? 'bg-red-50 text-red-600' : entry.level === 'warn' ? 'bg-amber-50 text-amber-600' : 'bg-slate-100 text-slate-500'">{{ entry.level }}</span>

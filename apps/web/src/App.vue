@@ -18,9 +18,12 @@ onMounted(() => {
   <div class="app-shell">
     <AppSidebar @open-settings="settingsOpen = true" />
     <main class="app-main">
-      <AppScrollbar>
-        <router-view class="page-view" />
-      </AppScrollbar>
+      <router-view v-slot="{ Component, route }">
+        <AppScrollbar v-if="route.name === 'home'">
+          <component :is="Component" class="page-view" />
+        </AppScrollbar>
+        <component :is="Component" v-else class="page-view" />
+      </router-view>
     </main>
     <SettingsModal :open="settingsOpen" @close="settingsOpen = false" />
     <ConfirmDialog />

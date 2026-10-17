@@ -46,7 +46,7 @@ function processInfo(s: PortStatus): string {
 </script>
 
 <template>
-  <div class="px-8 py-7">
+  <div class="data-page px-8 py-7">
     <div class="flex items-start justify-between">
       <div>
         <h1 class="flex items-center gap-1.5 text-xl font-semibold text-slate-800">端口管理<Tooltip label="端口管理说明" content="查看本地端口占用情况,避免部署端口冲突" /></h1>
@@ -76,7 +76,7 @@ function processInfo(s: PortStatus): string {
       </StatCard>
     </div>
 
-    <div class="mt-5 overflow-hidden glass-card rounded-2xl bg-white shadow-sm">
+    <div class="data-scroll port-table-scroll mt-5 glass-card rounded-2xl bg-white shadow-sm">
       <table class="w-full text-left text-sm">
         <thead>
           <tr class="border-b border-slate-100 text-xs text-slate-400">

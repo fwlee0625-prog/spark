@@ -91,6 +91,11 @@ button:focus-visible, a:focus-visible { outline: 3px solid #8883ff; outline-offs
 }
 .app-main::after { content: ''; position: absolute; z-index: -1; pointer-events: none; width: 780px; height: 650px; right: -480px; bottom: -300px; border-radius: 50%; transform: rotate(-25deg); background: linear-gradient(140deg, #d7d1ff77, #b2cfff52); }
 .page-view { padding: 32px 30px; }
+.data-page { display: flex; flex-direction: column; height: 100%; min-height: 0; overflow: hidden; }
+.data-page > * { flex-shrink: 0; }
+.data-scroll, .data-page > .project-grid { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+.data-page > .project-grid { align-content: start; padding: 1px 4px 12px; }
+.port-table-scroll thead { position: sticky; top: 0; z-index: 1; background: #fcfdff; }
 .page-view h1 { font-size: 26px; line-height: 1.35; font-weight: 700; letter-spacing: -.6px; }
 .page-view h1 + p { margin-top: 5px; font-size: 15px; line-height: 1.6; color: #8194b5; }
 .glass-card { border: 1px solid #ffffffbb; background: #ffffffd9; border-radius: 20px; box-shadow: 0 9px 30px #758fcb0a; }

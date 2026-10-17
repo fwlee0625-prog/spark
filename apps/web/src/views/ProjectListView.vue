@@ -125,7 +125,7 @@ async function stopAll(): Promise<void> {
 </script>
 
 <template>
-  <div class="projects-page">
+  <div class="projects-page data-page">
     <div class="page-header">
       <div>
         <h1 class="flex items-center gap-1.5 text-xl font-semibold text-slate-800">项目列表<Tooltip label="项目列表说明" content="管理所有本地项目,支持快速启动、停止和查看日志" /></h1>
