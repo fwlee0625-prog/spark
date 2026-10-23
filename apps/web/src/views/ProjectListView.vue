@@ -21,6 +21,7 @@ import GroupManagerModal from '../components/GroupManagerModal.vue';
 import Select from '../components/Select.vue';
 import StatusBadge from '../components/StatusBadge.vue';
 import TypeTag from '../components/TypeTag.vue';
+import ProjectPortLink from '../components/ProjectPortLink.vue';
 
 const search = ref('');
 const typeFilter = ref('');
@@ -217,6 +218,7 @@ async function stopAll(): Promise<void> {
         </div>
 
         <div class="project-card-actions" @click.stop>
+          <ProjectPortLink :terminals="p.terminalStates" />
           <button
             v-if="p.status === 'stopped' || p.status === 'failed' || p.status === 'partial'"
             class="rounded-lg bg-emerald-50 p-2 text-emerald-600 hover:bg-emerald-100"
