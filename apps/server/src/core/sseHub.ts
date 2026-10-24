@@ -1,4 +1,4 @@
-import type { StatusEvent } from '@spark/shared';
+import type { ResourceSnapshot, StatusEvent } from '@spark/shared';
 import type { Response } from 'express';
 
 const HEARTBEAT_MS = 15000;
@@ -37,7 +37,7 @@ export class StatusHub {
     res.on('close', () => this.clients.delete(res));
   }
 
-  broadcast(evt: StatusEvent): void {
+  broadcast(evt: StatusEvent | ResourceSnapshot): void {
     for (const res of this.clients) {
       try {
         sseSend(res, evt);

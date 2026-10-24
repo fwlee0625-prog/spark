@@ -169,3 +169,41 @@ export const SHELL_MODE_LABELS: Record<ShellMode, string> = {
   'non-login': '非登录 shell(zsh -lc,跳过 .zshrc)',
   direct: '直接 spawn(/bin/sh -c,最快但 PATH 可能不全)',
 };
+
+/** CPU 使用率按整机全部逻辑核心容量计算；空值表示尚未采集或不可用。 */
+export interface ResourceUsage {
+  status: 'ready' | 'collecting' | 'stopped' | 'unavailable';
+  sampledAt: number | null;
+  memoryBytes: number | null;
+  cpuPercent: number | null;
+  processCount: number | null;
+  runId: string | null;
+}
+export interface ProcessResource {
+  pid: number;
+  name: string;
+  memoryBytes: number;
+  cpuPercent: number | null;
+}
+export interface TerminalResource extends ResourceUsage {
+  terminalId: string;
+  processes: ProcessResource[];
+}
+export interface ProjectResource extends ResourceUsage {
+  projectId: string;
+  terminals: TerminalResource[];
+}
+export interface ResourceSnapshot {
+  type: 'resources';
+  sampledAt: number;
+  intervalMs: number;
+  total: ResourceUsage;
+  projects: ProjectResource[];
+}
+export interface ResourceHistoryPoint extends ResourceUsage {
+  timestamp: number;
+}
+export interface ResourceHistory {
+  projectId: string;
+  points: ResourceHistoryPoint[];
+}

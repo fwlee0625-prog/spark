@@ -6,7 +6,7 @@ import { projectTerminals, terminalKey } from '@spark/shared';
 import type { LogBufferManager } from './logBuffer.js';
 import { isPortFree, listPortProcesses, pidCwd } from './portChecker.js';
 import type { RunningGroup } from './portStatus.js';
-import { ProcessRecords, processIdentity } from './processRecords.js';
+import { ProcessRecords, processIdentity, normalizeProcessIdentity } from './processRecords.js';
 
 type ProcessSpec = Omit<Project, 'terminals'> & { command: string; port: number | null; env: Record<string, string> };
 
@@ -49,13 +49,19 @@ class TerminalProcessManager {
   restore(project: ProcessSpec, settings: Settings): void {
     const record = this.records?.read(project.id);
     if (!record) return;
-    if (record.cwd !== fs.realpathSync(project.cwd) || processIdentity(record.pid) !== record.identity) {
+    const identity = processIdentity(record.pid);
+    // Older records inherited the host locale. Verify once in that locale, then migrate
+    // to the same canonical C-locale identity used by resource sampling.
+    const matchesIdentity =
+      identity !== null && (identity === normalizeProcessIdentity(record.identity) || processIdentity(record.pid, true) === record.identity);
+    if (record.cwd !== fs.realpathSync(project.cwd) || !matchesIdentity) {
       this.records!.remove(project.id);
       return;
     }
     const e = this.entry(project.id);
     e.pid = record.pid;
-    e.identity = record.identity;
+    e.identity = identity!;
+    if (record.identity !== identity) this.records!.write({ ...record, identity: identity! });
     e.startedAt = record.startedAt;
     e.stopLogs = this.records!.follow(project.id, this.logs);
     this.setStatus(e, project.id, 'running');
@@ -122,7 +128,7 @@ class TerminalProcessManager {
     const result: RunningGroup[] = [];
     for (const [id, e] of this.entries) {
       if (e.pid != null && (e.status === 'running' || e.status === 'starting')) {
-        result.push({ id, pgid: e.pid });
+        result.push({ id, pgid: e.pid, identity: e.identity });
       }
     }
     return result;

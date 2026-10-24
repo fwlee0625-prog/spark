@@ -25,6 +25,8 @@ export interface RunningGroup {
   terminalId?: string;
   /** detached 子进程是组长,pgid 即其 pid */
   pgid: number;
+  /** 已验证的进程组长身份，供资源采样防止 PID 复用。 */
+  identity?: string;
   /** 项目 cwd,用于 pgid 匹配失败时(如 pnpm 会给子进程另起进程组)按工作目录归属 */
   cwd?: string;
 }

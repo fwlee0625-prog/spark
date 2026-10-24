@@ -3,6 +3,8 @@ import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import { AnsiUp } from 'ansi_up';
 import { displayedPorts } from '@spark/shared';
 import type { LogLine } from '@spark/shared';
+import { metric } from '../utils/resources.js';
+import { getResource } from '../stores/app.js';
 import { getProject } from '../stores/app.js';
 import { toast } from '../composables/toast.js';
 import StatusBadge from './StatusBadge.vue';
@@ -10,9 +12,11 @@ import { api } from '../api/client.js';
 import { formatTime } from '../utils/format.js';
 import Icon from './Icon.vue';
 
-const props = defineProps<{ projectId: string }>();
+const props = defineProps<{ projectId: string; terminalId?: string }>();
 
-const selectedTerminal = ref('');
+const selectedTerminal = ref(props.terminalId ?? '');
+watch(() => props.terminalId, id => { if(id) selectedTerminal.value=id; });
+const resource = computed(() => getResource(props.projectId)?.terminals.find(t => t.terminalId === selectedTerminal.value));
 const project = computed(() => getProject(props.projectId));
 const terminals = computed(() => project.value?.terminalStates ?? []);
 const current = computed(() => terminals.value.find((t) => t.id === selectedTerminal.value));
@@ -88,6 +92,8 @@ onBeforeUnmount(() => es?.close());
     <div v-if="current" class="flex shrink-0 flex-wrap items-center gap-2 border-b border-slate-700/60 bg-slate-900 px-4 py-2 text-xs text-slate-400">
       <span class="min-w-0 flex-1 truncate font-mono" :title="current.command">{{ current.command }}</span>
       <span v-if="displayedPorts([current]).length">端口 {{ displayedPorts([current]).join(' / ') }}</span>
+      <span title="占整机容量">CPU {{ metric(resource, 'cpuPercent') }}</span>
+      <span title="进程树 RSS 合计">内存 {{ metric(resource, 'memoryBytes') }}</span>
       <span v-if="current.pid">PID {{ current.pid }}</span>
       <span v-if="current.status === 'failed'">退出码 {{ current.exitCode }}</span>
       <button v-if="!['running', 'starting'].includes(current.status)" :disabled="busy" class="rounded bg-emerald-900/50 px-2 py-1 text-emerald-300 disabled:opacity-50" @click="act('start')">启动终端</button>

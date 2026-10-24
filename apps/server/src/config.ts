@@ -33,8 +33,32 @@ export function migrateLegacyDataDir(opts?: { legacyDir?: string; targetDir?: st
   const legacy = opts?.legacyDir ?? path.resolve(process.cwd(), 'data');
   const target = opts?.targetDir ?? DEFAULT_DATA_DIR;
   if (!fs.existsSync(path.join(legacy, 'projects.json'))) return;
-  if (fs.existsSync(path.join(target, 'projects.json'))) return;
+  if (fs.existsSync(path.join(target, 'projects.json'))) {
+    // 配置已迁移也要补齐运行记录；不覆盖目标记录，不凭端口接管进程。
+    const sourceRuntime = path.join(legacy, 'runtime');
+    const targetRuntime = path.join(target, 'runtime');
+    if (!fs.existsSync(sourceRuntime)) return;
+    fs.mkdirSync(targetRuntime, { recursive: true, mode: 0o700 });
+    for (const name of fs.readdirSync(sourceRuntime)) {
+      if (!name.endsWith('.json')) continue;
+      const destination = path.join(targetRuntime, name);
+      if (fs.existsSync(destination)) continue;
+      const base = name.slice(0, -5);
+      for (const suffix of ['stdout', 'stderr']) {
+        const source = path.join(sourceRuntime, `${base}.${suffix}`);
+        const output = path.join(targetRuntime, `${base}.${suffix}`);
+        // 原进程仍持有旧日志文件的描述符，链接保证后续输出继续可读。
+        if (fs.existsSync(source) && !fs.existsSync(output)) fs.symlinkSync(source, output);
+      }
+      fs.copyFileSync(path.join(sourceRuntime, name), destination, fs.constants.COPYFILE_EXCL);
+    }
+    return;
+  }
   fs.mkdirSync(target, { recursive: true });
-  fs.cpSync(legacy, target, { recursive: true });
+  fs.cpSync(legacy, target, {
+    recursive: true,
+    filter: (source) => source !== path.join(legacy, 'runtime'),
+  });
+  migrateLegacyDataDir({ legacyDir: legacy, targetDir: target });
   console.warn(`[spark] 已将数据从 ${legacy} 迁移到 ${target}`);
 }

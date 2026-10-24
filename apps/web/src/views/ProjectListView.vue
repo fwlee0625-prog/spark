@@ -1,4 +1,9 @@
 <script setup lang="ts">
+import { useRoute } from 'vue-router';
+import ResourceLine from '../components/ResourceLine.vue';
+import ResourcePanel from '../components/ResourcePanel.vue';
+import { getResource } from '../stores/app.js';
+import { sortProjects, sortOptions } from '../utils/resources.js';
 import Tooltip from '../components/Tooltip.vue';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import type { Project } from '@spark/shared';
@@ -23,6 +28,10 @@ import StatusBadge from '../components/StatusBadge.vue';
 import TypeTag from '../components/TypeTag.vue';
 import ProjectPortLink from '../components/ProjectPortLink.vue';
 
+const sort = ref('default');
+const route = useRoute();
+const drawerTab = ref('logs');
+const terminalId = ref('');
 const search = ref('');
 const typeFilter = ref('');
 const statusFilter = ref('');
@@ -45,17 +54,17 @@ const groupOptions = computed(() => [
 const formOpen = ref(false);
 const formRef = ref<InstanceType<typeof ProjectFormModal> | null>(null);
 const groupOpen = ref(false);
-const drawerId = ref('');
+const drawerId = ref(typeof route.query.project === 'string' ? route.query.project : '');
 
 const filtered = computed(() =>
-  store.projects.filter((p) => {
+  sortProjects(store.projects.filter((p) => {
     const q = search.value.trim().toLowerCase();
     if (q && !`${p.name} ${p.cwd}`.toLowerCase().includes(q)) return false;
     if (typeFilter.value && p.type !== typeFilter.value) return false;
     if (statusFilter.value && p.status !== statusFilter.value) return false;
     if (groupFilter.value && !p.groupIds.includes(groupFilter.value)) return false;
     return true;
-  }),
+  }), sort.value),
 );
 
 const drawerProject = computed(() => store.projects.find((p) => p.id === drawerId.value) ?? null);
@@ -83,6 +92,8 @@ function openEdit(p: Project): void {
 
 function openDrawer(id: string): void {
   drawerId.value = id;
+  drawerTab.value = 'logs';
+  terminalId.value = '';
 }
 
 async function startAll(): Promise<void> {
@@ -174,6 +185,7 @@ async function stopAll(): Promise<void> {
       <Select v-model="typeFilter" :options="typeOptions" rounded="xl" />
       <Select v-model="statusFilter" :options="statusOptions" rounded="xl" />
       <Select v-model="groupFilter" :options="groupOptions" rounded="xl" />
+      <Select v-model="sort" :options="sortOptions" rounded="xl" />
     </div>
 
     <!-- 项目卡片 -->
@@ -217,6 +229,7 @@ async function stopAll(): Promise<void> {
           </span>
         </div>
 
+        <ResourceLine :resource="getResource(p.id)" :now="now" />
         <div class="project-card-actions" @click.stop>
           <ProjectPortLink :terminals="p.terminalStates" />
           <button
@@ -321,13 +334,12 @@ async function stopAll(): Promise<void> {
               </div>
             </dl>
           </section>
-          <div class="flex shrink-0 items-center gap-2 px-6 py-3">
-            <Icon name="terminal" size="sm" class="text-slate-400" />
-            <h3 class="text-sm font-semibold text-slate-700">终端 · {{ drawerProject.terminalStates.length }} 个</h3>
-            <Tooltip label="项目终端说明" content="选择终端查看日志，每个终端可以独立启动、停止和重启。" />
+          <div class="flex shrink-0 items-center gap-5 border-b border-slate-100 px-6">
+            <button v-for="tab in [{id:'logs',label:'终端日志'},{id:'resources',label:'资源监控'}]" :key="tab.id" class="border-b-2 py-3 text-sm" :class="drawerTab === tab.id ? 'border-blue-500 font-medium text-blue-600' : 'border-transparent text-slate-500'" @click="drawerTab=tab.id">{{ tab.label }}</button>
           </div>
           <div class="min-h-0 flex-1">
-            <LogPanel :project-id="drawerProject.id" />
+            <LogPanel v-if="drawerTab === 'logs'" :project-id="drawerProject.id" :terminal-id="terminalId" />
+            <ResourcePanel v-else :project-id="drawerProject.id" @logs="id => { terminalId=id; drawerTab='logs'; }" />
           </div>
         </div>
       </div>

@@ -19,7 +19,7 @@ onMounted(() => {
     <AppSidebar @open-settings="settingsOpen = true" />
     <main class="app-main">
       <router-view v-slot="{ Component, route }">
-        <AppScrollbar v-if="route.name === 'home'">
+        <AppScrollbar v-if="route.name === 'home' || route.name === 'resources'">
           <component :is="Component" class="page-view" />
         </AppScrollbar>
         <component :is="Component" v-else class="page-view" />

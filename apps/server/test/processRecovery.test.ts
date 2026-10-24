@@ -8,6 +8,7 @@ import { DEFAULT_SETTINGS, type Project } from '@spark/shared';
 import { afterEach, beforeEach, expect, it } from 'vitest';
 import { LogBufferManager } from '../src/core/logBuffer.js';
 import { ProcessManager } from '../src/core/processManager.js';
+import { processIdentity, normalizeProcessIdentity } from '../src/core/processRecords.js';
 
 let dir: string;
 let project: Project;
@@ -130,4 +131,38 @@ it('开启退出时停止项目后，真实管理进程退出会清理项目和�
   const { pm } = manager();
   pm.restore([project], settings);
   expect(pm.getState(project.id).status).toBe('stopped');
+});
+
+it('接管旧中文locale身份后迁移为与资源采样一致的C身份', async () => {
+  const first = manager().pm;
+  first.start(project, settings);
+  const pid = first.getState(project.id).pid!;
+  first.detach();
+  const file = path.join(dir, 'runtime', `${Buffer.from('project:main').toString('hex')}.json`);
+  const record = JSON.parse(await fs.readFile(file, 'utf8'));
+  const oldLocale = process.env.LC_ALL;
+  try {
+    process.env.LC_ALL = 'zh_CN.UTF-8';
+    const legacyIdentity = processIdentity(pid, true);
+    expect(legacyIdentity).not.toBeNull();
+    await fs.writeFile(file, JSON.stringify({ ...record, identity: legacyIdentity }));
+    process.env.LC_ALL = 'C';
+    const second = manager().pm;
+    second.restore([project], settings);
+    expect(second.getState(project.id).status).toBe('running');
+    const canonicalIdentity = processIdentity(pid);
+    expect(second.runningGroups()[0]!.identity).toBe(canonicalIdentity);
+    expect(JSON.parse(await fs.readFile(file, 'utf8')).identity).toBe(canonicalIdentity);
+    if (process.platform === 'darwin') expect(legacyIdentity).not.toBe(canonicalIdentity);
+    await second.stop(project);
+  } finally {
+    if (oldLocale === undefined) delete process.env.LC_ALL;
+    else process.env.LC_ALL = oldLocale;
+  }
+});
+
+it('中文旧身份不依赖当前 locale，保留 PID 与精确启动时间校验', () => {
+  expect(normalizeProcessIdentity('95102 六 10/17 13:41:52 2026')).toBe('95102 Sat Oct 17 13:41:52 2026');
+  expect(normalizeProcessIdentity('95102 Sat Oct 17 13:41:52 2026')).toBe('95102 Sat Oct 17 13:41:52 2026');
+  expect(normalizeProcessIdentity('different start time')).toBe('different start time');
 });

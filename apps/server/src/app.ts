@@ -9,6 +9,7 @@ import { ConfigStore } from './core/configStore.js';
 import { LogBufferManager } from './core/logBuffer.js';
 import { PortMonitor } from './core/portMonitor.js';
 import { ProcessManager } from './core/processManager.js';
+import { ResourceMonitor } from './core/resourceMonitor.js';
 import { StatusHub } from './core/sseHub.js';
 import { appLogsRouter } from './routes/appLogs.js';
 import { detectRouter } from './routes/detect.js';
@@ -26,6 +27,7 @@ export interface SparkContext {
   pm: ProcessManager;
   hub: StatusHub;
   ports: PortMonitor;
+  resources: ResourceMonitor;
 }
 
 export async function createApp(): Promise<{ app: express.Express; ctx: SparkContext; csrfToken: string }> {
@@ -35,10 +37,19 @@ export async function createApp(): Promise<{ app: express.Express; ctx: SparkCon
   const logs = new LogBufferManager(store.getSettings().logMaxLines);
   const appLogs = new AppLogStore(path.join(DATA_DIR, 'logs', 'spark.log.jsonl'));
   const hub = new StatusHub();
-  const pm = new ProcessManager(logs, (evt) => hub.broadcast(evt), path.join(DATA_DIR, 'runtime'));
+  let resources: ResourceMonitor | undefined;
+  const pm = new ProcessManager(
+    logs,
+    (evt) => {
+      hub.broadcast(evt);
+      resources?.stateChanged();
+    },
+    path.join(DATA_DIR, 'runtime'),
+  );
   pm.restore(store.listProjects(), store.getSettings());
   const ports = new PortMonitor(store, pm);
-  const ctx: SparkContext = { store, logs, appLogs, pm, hub, ports };
+  resources = new ResourceMonitor(store, pm, (snapshot) => hub.broadcast(snapshot));
+  const ctx: SparkContext = { store, logs, appLogs, pm, hub, ports, resources };
 
   // 随机 CSRF token:页面启动时获取,修改类请求必须携带
   const csrfToken = randomBytes(24).toString('hex');
@@ -81,7 +92,15 @@ export async function createApp(): Promise<{ app: express.Express; ctx: SparkCon
   app.use('/api/ports', portsRouter(ctx));
   app.use('/api/settings', settingsRouter(ctx));
   app.use('/api/app-logs', appLogsRouter(ctx));
-  app.get('/api/events', (_req, res) => hub.add(res));
+  app.get('/api/resources', (_req, res) => res.set('Cache-Control', 'no-store').json(ctx.resources.read()));
+  app.get('/api/projects/:id/resources/history', (req, res) => {
+    if (!store.getProject(req.params.id)) return res.status(404).json({ error: 'NOT_FOUND' });
+    res.set('Cache-Control', 'no-store').json(ctx.resources.history(req.params.id));
+  });
+  app.get('/api/events', (_req, res) => {
+    hub.add(res);
+    res.write(`data: ${JSON.stringify(ctx.resources.read())}\n\n`);
+  });
   app.get('/api/health', (_req, res) => res.json({ ok: true, version: '0.1.0' }));
 
   // 生产模式:静态托管前端构建产物 + SPA 回退

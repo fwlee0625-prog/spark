@@ -54,6 +54,17 @@ describe('migrateLegacyDataDir', () => {
     const { migrateLegacyDataDir } = await import('../src/config.js');
     migrateLegacyDataDir({ legacyDir: legacy, targetDir: target });
     expect(fs.readFileSync(path.join(target, 'projects.json'), 'utf8')).toContain('keep');
+    fs.mkdirSync(path.join(legacy, 'runtime'));
+    fs.writeFileSync(path.join(legacy, 'runtime', 'terminal.json'), '{"pid":123}');
+    fs.writeFileSync(path.join(legacy, 'runtime', 'terminal.stdout'), 'before');
+    migrateLegacyDataDir({ legacyDir: legacy, targetDir: target });
+    expect(fs.readFileSync(path.join(target, 'runtime', 'terminal.json'), 'utf8')).toContain('123');
+    fs.appendFileSync(path.join(legacy, 'runtime', 'terminal.stdout'), 'after');
+    expect(fs.readFileSync(path.join(target, 'runtime', 'terminal.stdout'), 'utf8')).toBe('beforeafter');
+    fs.writeFileSync(path.join(target, 'runtime', 'terminal.json'), '{"pid":456}');
+    migrateLegacyDataDir({ legacyDir: legacy, targetDir: target });
+    expect(fs.readFileSync(path.join(target, 'runtime', 'terminal.json'), 'utf8')).toContain('456');
+
     fs.rmSync(tmp, { recursive: true, force: true });
   });
 

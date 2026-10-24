@@ -13,11 +13,12 @@ export interface ProcessRecord {
 }
 
 /** 启动时间与进程组一起校验，避免 PID 被其他进程复用后误接管。 */
-export function processIdentity(pid: number): string | null {
+export function processIdentity(pid: number, legacyLocale = false): string | null {
   try {
     const output = execFileSync('ps', ['-p', String(pid), '-o', 'pgid=,lstart=,stat='], {
       encoding: 'utf8',
       timeout: 2000,
+      env: legacyLocale ? process.env : { ...process.env, LC_ALL: 'C' },
     }).trim();
     const [pgid, ...parts] = output.split(/\s+/);
     const state = parts.pop();
@@ -26,6 +27,18 @@ export function processIdentity(pid: number): string | null {
   } catch {
     return null;
   }
+}
+
+/** 旧版 macOS 中文 ps 日期转为固定 C locale，避免启动环境变化导致身份丢失。 */
+export function normalizeProcessIdentity(identity: string): string {
+  const match = identity.match(/^(\d+) \S+ (\d{1,2})\/(\d{1,2}) (\d{2}:\d{2}:\d{2}) (\d{4})$/);
+  if (!match) return identity;
+  const [, pid, month, day, time, year] = match;
+  const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
+  if (date.getUTCMonth() !== Number(month) - 1 || date.getUTCDate() !== Number(day)) return identity;
+  const weekday = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][date.getUTCDay()];
+  const monthName = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][date.getUTCMonth()];
+  return `${pid} ${weekday} ${monthName} ${Number(day)} ${time} ${year}`;
 }
 
 /** 输出直接写入文件，Spark 退出不会关闭项目的 stdout/stderr 管道。 */

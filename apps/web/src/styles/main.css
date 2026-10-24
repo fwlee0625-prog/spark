@@ -145,7 +145,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid #8883ff; outline-offs
 .project-filters [role='combobox'] { min-width: 120px; height: 46px; padding: 10px 15px; border-radius: 15px; border-color: #e1e8f6; background: #ffffffb5; font-size: 15px; color: #7182a3; box-shadow: 0 3px 12px #8aa1d507; }
 .project-filters [role='combobox'] > span { color: inherit; }
 .project-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 400px), 1fr)); gap: 20px; margin-top: 20px; }
-.project-card { display: grid; grid-template-rows: 54px 48px 44px 54px; min-width: 0; padding: 20px 22px 18px; border: 1px solid #ffffffb3; border-radius: 21px; background: #ffffffdf; cursor: pointer; box-shadow: 0 9px 30px #758fcb0a; transition: box-shadow .2s, border-color .2s; }
+.project-card { display: grid; grid-template-rows: 54px 48px 44px 36px 54px; min-width: 0; padding: 20px 22px 18px; border: 1px solid #ffffffb3; border-radius: 21px; background: #ffffffdf; cursor: pointer; box-shadow: 0 9px 30px #758fcb0a; transition: box-shadow .2s, border-color .2s; }
 .project-card:hover { border-color: #d4d8ff; box-shadow: 0 12px 32px #758fcb20; }
 .project-card-heading { display: flex; min-width: 0; align-items: center; gap: 18px; }
 .project-card-heading > .flex-1 { overflow: hidden; }

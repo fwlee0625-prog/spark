@@ -5,6 +5,8 @@ import type {
   Group,
   PortStatus,
   ProjectWithState,
+  ResourceHistory,
+  ResourceSnapshot,
   Settings,
 } from '@spark/shared';
 
@@ -72,6 +74,9 @@ export interface AppLogEntry {
 }
 
 export const api = {
+  getResources: () => request<ResourceSnapshot>('GET', '/api/resources'),
+  resourceHistory: (id: string) =>
+    request<ResourceHistory>('GET', `/api/projects/${encodeURIComponent(id)}/resources/history`),
   listProjects: () => request<ProjectWithState[]>('GET', '/api/projects'),
   createProject: (p: Record<string, unknown>) => request<ProjectWithState>('POST', '/api/projects', p),
   updateProject: (id: string, p: Record<string, unknown>) => request<ProjectWithState>('PUT', `/api/projects/${id}`, p),

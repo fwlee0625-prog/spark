@@ -25,6 +25,7 @@ for (const level of ['log', 'info', 'warn', 'error', 'debug'] as const) {
   };
 }
 ctx.ports.start();
+ctx.resources.start();
 
 for (const backup of ctx.store.corruptBackups) {
   console.warn(`[spark] 配置文件损坏,已备份到 ${backup},并以空配置继续`);
@@ -60,6 +61,7 @@ async function shutdown(signal: string): Promise<void> {
   if (shuttingDown) return;
   shuttingDown = true;
   ctx.ports.stop();
+  ctx.resources.stop();
   console.log(`[spark] 收到 ${signal},正在退出…`);
   try {
     await ctx.pm.shutdown(ctx.store.listProjects(), ctx.store.getSettings());
