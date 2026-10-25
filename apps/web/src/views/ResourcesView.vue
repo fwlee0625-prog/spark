@@ -58,7 +58,7 @@ function showLogs(id: string) { terminalId.value = id; tab.value = 'logs'; }
       </div>
       <div class="max-h-80 overflow-auto">
         <table class="w-full min-w-[680px] text-left text-xs">
-          <thead class="sticky top-0 bg-slate-50 text-slate-400"><tr><th class="p-4">项目</th><th class="p-4">状态</th><th class="p-4">内存 RSS</th><th class="p-4">CPU</th><th class="p-4">进程</th><th class="p-4">采样状态</th></tr></thead>
+          <thead class="sticky top-0 z-10 bg-slate-50 text-slate-400"><tr><th class="p-4">项目</th><th class="p-4">状态</th><th class="p-4">内存 RSS</th><th class="p-4">CPU</th><th class="p-4">进程</th><th class="p-4">采样状态</th></tr></thead>
           <tbody>
             <tr v-for="p in projects" :key="p.id" class="border-t border-slate-100" :class="selectedId === p.id ? 'bg-blue-50/70' : 'hover:bg-slate-50'">
               <td class="p-4"><button class="text-left font-medium text-blue-600 hover:underline" :aria-pressed="selectedId === p.id" @click="selectedId = p.id">{{ p.name }}</button><p class="mt-1 max-w-64 truncate text-slate-400" :title="p.cwd">{{ p.cwd }}</p></td>
