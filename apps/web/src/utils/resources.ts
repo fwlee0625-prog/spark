@@ -26,8 +26,7 @@ export const sortOptions = [
 export function sortProjects(projects: ProjectWithState[], key: string): ProjectWithState[] {
   if (key === 'default') return projects;
   if (key === 'status') {
-    const isActive = (project: ProjectWithState) =>
-      ['running', 'starting', 'partial'].includes(project.status);
+    const isActive = (project: ProjectWithState) => ['running', 'starting', 'partial'].includes(project.status);
     return [...projects].sort((a, b) => Number(isActive(b)) - Number(isActive(a)));
   }
   return [...projects].sort((a, b) => {
@@ -43,7 +42,7 @@ export function sortProjects(projects: ProjectWithState[], key: string): Project
 export function freshness(resource: ResourceUsage | null | undefined, now: number): string {
   if (!resource?.sampledAt) return resource?.status === 'stopped' ? '已停止' : '等待采样';
   const seconds = Math.max(0, Math.floor((now - resource.sampledAt) / 1000));
-  return seconds > Math.max(15, ((store.resources?.intervalMs ?? 5000) * 3) / 1000)
+  return seconds > Math.max(15, ((store.resources?.intervalMs ?? 30000) * 3) / 1000)
     ? `数据已过期 · ${seconds} 秒前`
     : `${seconds} 秒前更新`;
 }

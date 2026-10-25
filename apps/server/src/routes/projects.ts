@@ -8,6 +8,7 @@ import type { LogBufferManager } from '../core/logBuffer.js';
 import type { PortMonitor } from '../core/portMonitor.js';
 import { getPortStatus } from '../core/portStatus.js';
 import type { ProcessManager } from '../core/processManager.js';
+import type { ResourceMonitor } from '../core/resourceMonitor.js';
 import { initSse, sseHeartbeat, sseSend } from '../core/sseHub.js';
 import { asyncHandler, normalizeStringArray, normalizeTerminals, runningGroupsWithCwd } from './util.js';
 
@@ -16,6 +17,7 @@ export interface SparkContext {
   logs: LogBufferManager;
   pm: ProcessManager;
   ports: PortMonitor;
+  resources: ResourceMonitor;
 }
 
 function withState(ctx: SparkContext, project: Project): ProjectWithState {

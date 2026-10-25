@@ -10,6 +10,7 @@ import { LogBufferManager } from '../src/core/logBuffer.js';
 import { PortMonitor } from '../src/core/portMonitor.js';
 import { getPortStatus } from '../src/core/portStatus.js';
 import { ProcessManager } from '../src/core/processManager.js';
+import { ResourceMonitor } from '../src/core/resourceMonitor.js';
 import { groupsRouter } from '../src/routes/groups.js';
 import { portsRouter } from '../src/routes/ports.js';
 import { projectsRouter } from '../src/routes/projects.js';
@@ -22,7 +23,13 @@ vi.mock('../src/core/portStatus.js', async (importOriginal) => ({
 let dir: string;
 let server: Server;
 let url: string;
-let ctx: { store: ConfigStore; logs: LogBufferManager; pm: ProcessManager; ports: PortMonitor };
+let ctx: {
+  store: ConfigStore;
+  logs: LogBufferManager;
+  pm: ProcessManager;
+  ports: PortMonitor;
+  resources: ResourceMonitor;
+};
 beforeEach(async () => {
   dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'spark-terminal-api-'));
   await fsp.mkdir(path.join(dir, 'frontend'));
@@ -34,7 +41,7 @@ beforeEach(async () => {
   await store.init();
   const logs = new LogBufferManager(100);
   const pm = new ProcessManager(logs, () => {});
-  ctx = { store, logs, pm, ports: new PortMonitor(store, pm) };
+  ctx = { store, logs, pm, ports: new PortMonitor(store, pm), resources: new ResourceMonitor(store, pm, () => {}) };
   const app = express();
   app.use(express.json());
   app.use('/projects', projectsRouter(ctx));

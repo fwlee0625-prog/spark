@@ -2,7 +2,7 @@
 import ResourceLine from '../components/ResourceLine.vue';
 import Select from '../components/Select.vue';
 import { getResource } from '../stores/app.js';
-import { metric, sortProjects, sortOptions, freshness } from '../utils/resources.js';
+import { freshness, memory, metric, sortProjects, sortOptions } from '../utils/resources.js';
 import Tooltip from '../components/Tooltip.vue';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { displayedPorts } from '@spark/shared';
@@ -14,6 +14,7 @@ import { restartProjectAction, stopProjectAction } from '../composables/actions.
 import Icon from '../components/Icon.vue';
 import ProjectFormModal from '../components/ProjectFormModal.vue';
 import StatCard from '../components/StatCard.vue';
+import ResourceGauge from '../components/ResourceGauge.vue';
 import StatusBadge from '../components/StatusBadge.vue';
 
 const formOpen = ref(false);
@@ -56,6 +57,46 @@ function uptime(startedAt: number | null): string {
   return startedAt ? formatDuration(now.value - startedAt) : '-';
 }
 
+/** 首页三块扇形仪表:内存/CPU 占整机比例,进程以 100 个为满刻度 */
+const gaugeItems = computed(() => {
+  const total = store.resources?.total;
+  const sysMemory = store.resources?.systemMemoryBytes ?? null;
+  const memBytes = total?.memoryBytes ?? null;
+  const cpu = total?.cpuPercent ?? null;
+  const processes = total?.processCount ?? null;
+  const memPercent = memBytes != null && sysMemory ? (memBytes / sysMemory) * 100 : null;
+  const memoryText = memBytes != null ? memory(memBytes) : metric(total, 'memoryBytes');
+  return [
+    {
+      key: 'memory',
+      label: '内存 RSS',
+      title: '已管理项目进程树 RSS 合计；弧线为占系统物理内存的比例',
+      percent: memPercent,
+      center: memPercent == null ? '—' : `${Math.round(memPercent)}`,
+      unit: memPercent == null ? '' : '%',
+      detail: memPercent == null ? memoryText : `${memoryText} / ${memory(sysMemory!)}`,
+    },
+    {
+      key: 'cpu',
+      label: 'CPU · 整机容量',
+      title: '已管理项目 CPU 合计，按整机全部逻辑核心容量计算',
+      percent: cpu,
+      center: cpu == null ? '—' : `${Math.round(cpu)}`,
+      unit: cpu == null ? '' : '%',
+      detail: metric(total, 'cpuPercent'),
+    },
+    {
+      key: 'processes',
+      label: '活跃进程',
+      title: '已管理项目进程树中的进程数量；弧线满刻度为 100 个进程',
+      percent: processes == null ? null : Math.min(100, processes),
+      center: processes == null ? '—' : `${processes}`,
+      unit: '',
+      detail: metric(total, 'processCount'),
+    },
+  ];
+});
+
 </script>
 
 <template>
@@ -91,7 +132,15 @@ function uptime(startedAt: number | null): string {
 
     <section class="mt-5 rounded-2xl border border-white/70 bg-white/80 p-5 shadow-sm">
       <div class="flex flex-wrap items-center justify-between gap-2"><h2 class="text-sm font-semibold text-slate-700">已管理项目资源</h2><span class="text-xs text-slate-400">{{ freshness(store.resources?.total, now) }}</span></div>
-      <div class="mt-4 grid grid-cols-3 gap-3"><div v-for="item in ([['memoryBytes','内存 RSS'],['cpuPercent','CPU · 整机容量'],['processCount','活跃进程']] as const)" :key="item[0]"><p class="text-xs text-slate-400">{{ item[1] }}</p><p class="mt-1 text-xl font-semibold tabular-nums text-slate-700">{{ metric(store.resources?.total,item[0]) }}</p></div></div>
+      <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div v-for="g in gaugeItems" :key="g.key" class="flex items-center gap-4" :title="g.title">
+          <ResourceGauge :percent="g.percent" :value="g.center" :unit="g.unit" />
+          <div class="min-w-0">
+            <p class="text-xs text-slate-400">{{ g.label }}</p>
+            <p class="mt-0.5 truncate text-lg font-semibold tabular-nums text-slate-700">{{ g.detail }}</p>
+          </div>
+        </div>
+      </div>
       <p class="mt-3 text-xs text-slate-400">仅统计已管理项目的进程树；RSS 合计可能包含重复的共享内存。</p>
     </section>
     <div class="mt-5">

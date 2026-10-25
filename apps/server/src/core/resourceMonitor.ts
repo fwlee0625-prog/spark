@@ -10,6 +10,7 @@ import type {
   ResourceUsage,
   TerminalResource,
 } from '@spark/shared';
+import { DEFAULT_SETTINGS, RESOURCE_INTERVAL_MAX_MS, RESOURCE_INTERVAL_MIN_MS } from '@spark/shared';
 import type { ConfigStore } from './configStore.js';
 import { findProcessOwner } from './portStatus.js';
 import type { ProcessManager } from './processManager.js';
@@ -23,9 +24,9 @@ export interface ProcessSample {
   memoryBytes: number;
   name: string;
 }
-export const RESOURCE_INTERVAL_MS = 3000;
 const HISTORY_MS = 15 * 60 * 1000;
-const MAX_POINTS = Math.ceil(HISTORY_MS / RESOURCE_INTERVAL_MS) + 1;
+/** 上限按最小间隔计算;实际间隔来自设置(默认 30 秒),由 prune 的时间过滤兜底 */
+const MAX_POINTS = Math.ceil(HISTORY_MS / RESOURCE_INTERVAL_MIN_MS) + 1;
 
 export function parseCpuTime(value: string): number {
   const match = value.match(/^(?:(\d+)-)?(?:(\d+):)?(\d+):(\d+(?:\.\d+)?)$/);
@@ -102,16 +103,18 @@ export class ResourceMonitor {
   private pending: Promise<ResourceSnapshot> | null = null;
   private previous = new Map<number, { identity: string; cpuMs: number; at: number; owner: string }>();
   private histories = new Map<string, ResourceHistoryPoint[]>();
+  private readonly systemMemoryBytes = os.totalmem();
   private snapshot: ResourceSnapshot = {
     type: 'resources',
     sampledAt: 0,
-    intervalMs: RESOURCE_INTERVAL_MS,
+    intervalMs: DEFAULT_SETTINGS.resourceIntervalMs,
     total: empty('stopped'),
     projects: [],
+    systemMemoryBytes: this.systemMemoryBytes,
   };
   private generation = 0;
   constructor(
-    private store: Pick<ConfigStore, 'listProjects'>,
+    private store: Pick<ConfigStore, 'listProjects'> & Partial<Pick<ConfigStore, 'getSettings'>>,
     private pm: Pick<ProcessManager, 'terminalStates' | 'runningGroups'>,
     private broadcast: (snapshot: ResourceSnapshot) => void,
     private collect = sampleProcesses,
@@ -120,13 +123,31 @@ export class ResourceMonitor {
     private cpuCount = os.cpus().length || 1,
   ) {}
 
+  private intervalMs(): number {
+    const value = this.store.getSettings?.().resourceIntervalMs;
+    if (typeof value !== 'number' || !Number.isFinite(value)) return DEFAULT_SETTINGS.resourceIntervalMs;
+    return Math.min(RESOURCE_INTERVAL_MAX_MS, Math.max(RESOURCE_INTERVAL_MIN_MS, value));
+  }
+
   start(): void {
     if (this.timer) return;
     void this.refresh();
     this.timer = setInterval(() => {
       void this.refresh();
-    }, RESOURCE_INTERVAL_MS);
+    }, this.intervalMs());
     this.timer.unref();
+  }
+  /** 设置中的采样间隔变更后调用：按新间隔重建定时器，并立即推送携带新间隔的快照 */
+  restart(): void {
+    if (this.timer) {
+      clearInterval(this.timer);
+      this.timer = setInterval(() => {
+        void this.refresh();
+      }, this.intervalMs());
+      this.timer.unref();
+    }
+    this.snapshot = { ...this.snapshot, intervalMs: this.intervalMs() };
+    this.stateChanged();
   }
   stop(): void {
     clearInterval(this.timer);
@@ -170,8 +191,9 @@ export class ResourceMonitor {
       this.snapshot = {
         type: 'resources',
         sampledAt,
-        intervalMs: RESOURCE_INTERVAL_MS,
+        intervalMs: this.intervalMs(),
         projects,
+        systemMemoryBytes: this.systemMemoryBytes,
         total: sum(
           projects,
           projects.some((p) => p.runId) ? projects.map((p) => p.runId ?? '-').join('|') : null,
@@ -291,8 +313,9 @@ export class ResourceMonitor {
     this.snapshot = {
       type: 'resources',
       sampledAt: at,
-      intervalMs: RESOURCE_INTERVAL_MS,
+      intervalMs: this.intervalMs(),
       projects,
+      systemMemoryBytes: this.systemMemoryBytes,
       total: sum(projects, projects.some((p) => p.runId) ? projects.map((p) => p.runId ?? '-').join('|') : null, at),
     };
     this.broadcast(this.snapshot);

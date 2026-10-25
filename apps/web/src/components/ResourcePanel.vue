@@ -75,7 +75,7 @@ function toggle(id: string) {
         :field="field"
         :points="points"
         :now="now"
-        :interval="store.resources?.intervalMs ?? 5000"
+        :interval="store.resources?.intervalMs ?? 30000"
       />
     </div>
     <p v-if="historyError" class="mt-2 text-xs text-amber-600">

@@ -72,13 +72,19 @@ export interface Settings {
   logMaxLines: number;
   /** 崩溃自动重启次数上限 */
   autoRestartMax: number;
+  /** 资源采样间隔(毫秒)，越短 CPU 变化率越灵敏 */
+  resourceIntervalMs: number;
 }
+
+export const RESOURCE_INTERVAL_MIN_MS = 3000;
+export const RESOURCE_INTERVAL_MAX_MS = 300000;
 
 export const DEFAULT_SETTINGS: Settings = {
   shellMode: 'login',
   stopProjectsOnExit: false,
   logMaxLines: 5000,
   autoRestartMax: 3,
+  resourceIntervalMs: 30000,
 };
 
 /** 单条日志(保留原始 ANSI 序列,由前端渲染) */
@@ -199,6 +205,8 @@ export interface ResourceSnapshot {
   intervalMs: number;
   total: ResourceUsage;
   projects: ProjectResource[];
+  /** 系统物理内存总量，用于把已管理项目 RSS 换算成占比。 */
+  systemMemoryBytes: number;
 }
 export interface ResourceHistoryPoint extends ResourceUsage {
   timestamp: number;

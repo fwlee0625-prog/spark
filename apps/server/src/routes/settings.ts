@@ -1,4 +1,5 @@
 import type { ShellMode } from '@spark/shared';
+import { RESOURCE_INTERVAL_MAX_MS, RESOURCE_INTERVAL_MIN_MS } from '@spark/shared';
 import { Router } from 'express';
 import { DATA_DIR } from '../config.js';
 import type { SparkContext } from './projects.js';
@@ -45,9 +46,20 @@ export function settingsRouter(ctx: SparkContext): Router {
         }
         patch.autoRestartMax = n;
       }
+      if (body.resourceIntervalMs !== undefined) {
+        const n = Number(body.resourceIntervalMs);
+        if (!Number.isInteger(n) || n < RESOURCE_INTERVAL_MIN_MS || n > RESOURCE_INTERVAL_MAX_MS) {
+          return res.status(400).json({
+            error: 'BAD_REQUEST',
+            message: `resourceIntervalMs 必须是 ${RESOURCE_INTERVAL_MIN_MS}-${RESOURCE_INTERVAL_MAX_MS} 的整数`,
+          });
+        }
+        patch.resourceIntervalMs = n;
+      }
 
       const settings = await ctx.store.updateSettings(patch);
       ctx.logs.setMaxLines(settings.logMaxLines);
+      if (patch.resourceIntervalMs !== undefined) ctx.resources.restart();
       res.json(settings);
     }),
   );

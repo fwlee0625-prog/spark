@@ -17,6 +17,7 @@ const form = reactive({
   logMaxLines: 5000,
   autoRestartMax: 3,
   stopProjectsOnExit: false,
+  resourceIntervalSec: 30,
 });
 
 watch(
@@ -27,6 +28,7 @@ watch(
       form.shellMode = s.shellMode;
       form.logMaxLines = s.logMaxLines;
       form.autoRestartMax = s.autoRestartMax;
+      form.resourceIntervalSec = s.resourceIntervalMs / 1000;
     }
   },
   { immediate: true },
@@ -42,7 +44,8 @@ async function save(): Promise<void> {
   if (saving.value) return;
   saving.value = true;
   try {
-    await api.updateSettings({ ...form });
+    const { resourceIntervalSec, ...rest } = form;
+    await api.updateSettings({ ...rest, resourceIntervalMs: resourceIntervalSec * 1000 });
     await refreshSettings();
     toast("设置已保存", "success");
     emit("close");
@@ -120,6 +123,22 @@ Spark 关闭期间不执行崩溃自动重启；重新打开后恢复管理。" 
               class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
             />
           </div>
+        </div>
+      </section>
+
+      <!-- 资源监控 -->
+      <section class="glass-card rounded-2xl bg-white p-5 shadow-sm">
+        <h2 class="flex items-center gap-1.5 text-sm font-semibold text-slate-700">资源监控<Tooltip label="资源监控说明" content="资源采样间隔决定内存 RSS、CPU 与进程数的刷新频率（3-300 秒，默认 30 秒）。间隔越短 CPU 变化率越灵敏，开销也略高；修改后立即生效。" /></h2>
+        <div class="mt-3">
+          <label class="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-slate-500">资源采样间隔（秒）<Tooltip label="采样间隔说明" content="3-300 秒，默认 30 秒。资源监控页与顶部汇总按此间隔更新。" /></label>
+          <input
+            v-model.number="form.resourceIntervalSec"
+            type="number"
+            min="3"
+            max="300"
+            step="1"
+            class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 sm:w-48"
+          />
         </div>
       </section>
 

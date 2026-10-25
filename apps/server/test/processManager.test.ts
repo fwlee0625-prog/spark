@@ -15,7 +15,13 @@ afterAll(async () => {
   await fsp.rm(dir, { force: true, recursive: true });
 });
 
-const settings: Settings = { shellMode: 'direct', stopProjectsOnExit: false, logMaxLines: 1000, autoRestartMax: 3 };
+const settings: Settings = {
+  shellMode: 'direct',
+  stopProjectsOnExit: false,
+  logMaxLines: 1000,
+  autoRestartMax: 3,
+  resourceIntervalMs: 30000,
+};
 
 function makeProject(command: string): Project {
   return {

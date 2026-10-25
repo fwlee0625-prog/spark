@@ -74,7 +74,13 @@ describe('运行时端口发现', () => {
         autoRestart: false,
         terminals: [{ id: 'main', name: '服务', cwd: '', command, port: null, env: {} }],
       });
-      pm.start(project, { shellMode: 'direct', stopProjectsOnExit: false, logMaxLines: 100, autoRestartMax: 0 });
+      pm.start(project, {
+        shellMode: 'direct',
+        stopProjectsOnExit: false,
+        logMaxLines: 100,
+        autoRestartMax: 0,
+        resourceIntervalMs: 30000,
+      });
       await waitUntil(() => logs.replay(`${project!.id}:main`).some((line) => line.line.startsWith('ports:')));
       const text = logs.replay(`${project.id}:main`).find((line) => line.line.startsWith('ports:'))!.line;
       const expected = text

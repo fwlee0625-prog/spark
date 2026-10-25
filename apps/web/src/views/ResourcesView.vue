@@ -48,7 +48,7 @@ function showLogs(id: string) { terminalId.value = id; tab.value = 'logs'; }
         <p class="mt-3 text-2xl font-semibold tabular-nums text-slate-800">{{ activeCount }} <span class="text-sm font-normal text-slate-400">/ {{ store.projects.length }}</span></p>
       </div>
     </div>
-    <p class="mt-3 text-xs leading-5 text-slate-400">每 {{ (store.resources?.intervalMs ?? 3000) / 1000 }} 秒更新。仅统计已管理的本机进程树；RSS 可能重复包含共享内存，历史保留最近 15 分钟。</p>
+    <p class="mt-3 text-xs leading-5 text-slate-400">每 {{ (store.resources?.intervalMs ?? 30000) / 1000 }} 秒更新，可在设置中调整。仅统计已管理的本机进程树；RSS 可能重复包含共享内存，历史保留最近 15 分钟。</p>
     <section class="mt-6 overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm" aria-label="项目资源排行">
       <div class="flex flex-wrap items-center gap-3 border-b border-slate-100 p-4">
         <h2 class="mr-auto text-sm font-semibold text-slate-700">项目资源排行</h2>
@@ -57,8 +57,8 @@ function showLogs(id: string) { terminalId.value = id; tab.value = 'logs'; }
         <label class="flex items-center gap-2 text-xs text-slate-500"><input v-model="activeOnly" type="checkbox" class="accent-blue-500" />仅看运行中</label>
       </div>
       <div class="max-h-80 overflow-auto">
-        <table class="w-full min-w-[680px] text-left text-xs">
-          <thead class="sticky top-0 z-10 bg-slate-50 text-slate-400"><tr><th class="p-4">项目</th><th class="p-4">状态</th><th class="p-4">内存 RSS</th><th class="p-4">CPU</th><th class="p-4">进程</th><th class="p-4">采样状态</th></tr></thead>
+        <table class="w-full min-w-[560px] text-left text-xs">
+          <thead class="sticky top-0 z-10 bg-slate-50 text-slate-400"><tr><th class="p-4">项目</th><th class="p-4">状态</th><th class="p-4">内存 RSS</th><th class="p-4">CPU</th><th class="p-4">进程</th></tr></thead>
           <tbody>
             <tr v-for="p in projects" :key="p.id" class="border-t border-slate-100" :class="selectedId === p.id ? 'bg-blue-50/70' : 'hover:bg-slate-50'">
               <td class="p-4"><button class="text-left font-medium text-blue-600 hover:underline" :aria-pressed="selectedId === p.id" @click="selectedId = p.id">{{ p.name }}</button><p class="mt-1 max-w-64 truncate text-slate-400" :title="p.cwd">{{ p.cwd }}</p></td>
@@ -66,7 +66,6 @@ function showLogs(id: string) { terminalId.value = id; tab.value = 'logs'; }
               <td class="p-4 tabular-nums">{{ metric(getResource(p.id), 'memoryBytes') }}</td>
               <td class="p-4 tabular-nums">{{ metric(getResource(p.id), 'cpuPercent') }}</td>
               <td class="p-4 tabular-nums">{{ metric(getResource(p.id), 'processCount') }}</td>
-              <td class="p-4 text-slate-400">{{ getResource(p.id)?.status === 'unavailable' ? '采集不可用' : freshness(getResource(p.id), now) }}</td>
             </tr>
           </tbody>
         </table>
