@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
-import { AnsiUp } from 'ansi_up';
+import { computed, nextTick, onBeforeUnmount, ref, shallowRef, watch } from 'vue';
+import { useVirtualList } from '@vueuse/core';
+import { LogViewBuffer, type RenderedLogLine } from '../utils/logViewBuffer.js';
 import { displayedPorts } from '@spark/shared';
 import type { LogLine } from '@spark/shared';
 import { metric } from '../utils/resources.js';
@@ -29,24 +30,48 @@ async function act(action: 'start' | 'stop' | 'restart'): Promise<void> {
   finally { busy.value = false; }
 }
 
-const ansi = new AnsiUp();
-const lines = ref<LogLine[]>([]);
+const buffer = new LogViewBuffer();
+const lines = shallowRef<RenderedLogLine[]>([]);
 const autoscroll = ref(true);
-const container = ref<HTMLElement | null>(null);
+// Fixed-height terminal rows keep the DOM bounded; long lines scroll horizontally.
+const { list: visibleLines, containerProps, wrapperProps, scrollTo } = useVirtualList(lines, {
+  itemHeight: 20,
+  overscan: 8,
+});
 let es: EventSource | null = null;
+let flushTimer: ReturnType<typeof setTimeout> | undefined;
+let generation = 0;
+
+function resetLogs(): void {
+  generation++;
+  clearTimeout(flushTimer);
+  flushTimer = undefined;
+  buffer.clear();
+  lines.value = [];
+}
 
 function connect(): void {
   es?.close();
-  lines.value = [];
+  es = null;
+  resetLogs();
   autoscroll.value = true;
   if (!props.projectId || !selectedTerminal.value) return;
-  es = new EventSource(`/api/projects/${props.projectId}/logs?terminalId=${encodeURIComponent(selectedTerminal.value)}`);
-  es.onmessage = (e) => {
+  const source = new EventSource(`/api/projects/${props.projectId}/logs?terminalId=${encodeURIComponent(selectedTerminal.value)}`);
+  es = source;
+  source.onmessage = (e) => {
+    if (es !== source) return;
     try {
       const line = JSON.parse(e.data) as LogLine;
-      lines.value.push(line);
-      if (lines.value.length > 5000) lines.value.splice(0, lines.value.length - 5000);
-      if (autoscroll.value) void nextTick(scrollToBottom);
+      buffer.append(line);
+      if (flushTimer !== undefined) return;
+      const activeGeneration = generation;
+      flushTimer = setTimeout(() => {
+        flushTimer = undefined;
+        lines.value = buffer.flush(lines.value);
+        if (autoscroll.value) void nextTick(() => {
+          if (generation === activeGeneration) scrollToBottom();
+        });
+      }, 50);
     } catch {
       /* 忽略无法解析的消息 */
     }
@@ -54,19 +79,19 @@ function connect(): void {
 }
 
 function scrollToBottom(): void {
-  const el = container.value;
-  if (el) el.scrollTop = el.scrollHeight;
+  scrollTo(Math.max(0, lines.value.length - 1));
 }
+watch(autoscroll, enabled => { if (enabled) void nextTick(scrollToBottom); });
 
 /** 手动上滚时暂停自动滚动 */
 function onScroll(): void {
-  const el = container.value;
+  const el = containerProps.ref.value;
   if (!el) return;
   autoscroll.value = el.scrollTop + el.clientHeight >= el.scrollHeight - 40;
 }
 
 async function clearLogs(): Promise<void> {
-  lines.value = [];
+  resetLogs();
   try {
     await api.clearLogs(props.projectId, selectedTerminal.value);
   } catch {
@@ -76,10 +101,13 @@ async function clearLogs(): Promise<void> {
 
 watch([() => props.projectId, () => terminals.value.map((t) => t.id).join(',')], () => {
   if (!terminals.value.some((t) => t.id === selectedTerminal.value)) selectedTerminal.value = terminals.value[0]?.id ?? '';
-  connect();
 }, { immediate: true });
-watch(selectedTerminal, connect);
-onBeforeUnmount(() => es?.close());
+watch([() => props.projectId, selectedTerminal], connect, { immediate: true });
+onBeforeUnmount(() => {
+  es?.close();
+  es = null;
+  resetLogs();
+});
 </script>
 
 <template>
@@ -105,6 +133,7 @@ onBeforeUnmount(() => es?.close());
         <input v-model="autoscroll" type="checkbox" class="h-3.5 w-3.5 accent-blue-500" />
         自动滚动
       </label>
+      <span class="text-xs text-slate-500">{{ lines.length }} 行 · 长行可横向滚动</span>
       <button
         class="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-slate-400 hover:bg-slate-800 hover:text-slate-200"
         @click="clearLogs"
@@ -114,14 +143,18 @@ onBeforeUnmount(() => es?.close());
       </button>
     </div>
     <div
-      ref="container"
-      class="terminal flex-1 overflow-auto bg-slate-900 px-4 py-3 font-mono text-xs leading-5 text-slate-200"
+      v-bind="containerProps"
+      class="terminal min-h-0 flex-1 overflow-auto bg-slate-900 font-mono text-xs leading-5 text-slate-200"
       @scroll="onScroll"
+      aria-label="终端日志，长行可横向滚动"
+      tabindex="0"
     >
-      <div v-if="lines.length === 0" class="italic text-slate-600">暂无日志</div>
-      <div v-for="(l, i) in lines" :key="i" class="whitespace-pre-wrap break-all">
-        <span class="mr-1.5 select-none text-slate-500">{{ formatTime(l.ts) }}</span>
-        <span :class="l.stream === 'stderr' ? 'text-red-300' : ''" v-html="ansi.ansi_to_html(l.line)"></span>
+      <div v-if="lines.length === 0" class="px-4 italic text-slate-600">暂无日志</div>
+      <div v-else v-bind="wrapperProps" class="min-w-full w-max">
+        <div v-for="{ data: l } in visibleLines" :key="l.id" class="h-5 whitespace-pre px-4">
+          <span class="mr-1.5 select-none text-slate-500">{{ formatTime(l.ts) }}</span>
+          <span :class="l.stream === 'stderr' ? 'text-red-300' : ''" v-html="l.html"></span>
+        </div>
       </div>
     </div>
   </div>
