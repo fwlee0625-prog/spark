@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { DetectResult, Group, LogLine, PortStatus, ProjectWithState, Settings } from '@spark/shared';
 import { z } from 'zod';
@@ -126,7 +128,7 @@ export function registerTools(server: McpServer, client: SparkClient): void {
     'create_project',
     {
       description:
-        '创建项目(仅写入配置,不会修改项目文件)。terminals 省略时自动识别目录并生成单个终端;识别不出命令则报错。一个项目可有多个终端(如前端+后端)。start=true 时创建后立即启动。注意:终端命令会在本机执行。',
+        '创建项目(仅写入配置,不会修改项目文件)。同名称且同目录时复用已有项目并保留配置。terminals 省略时自动识别目录并生成单个终端;识别不出命令则报错。一个项目可有多个终端(如前端+后端)。start=true 时创建后立即启动。注意:终端命令会在本机执行。',
       inputSchema: {
         name: z.string().min(1).describe('项目名称'),
         cwd: z.string().min(1).describe('项目目录绝对路径'),
@@ -139,10 +141,21 @@ export function registerTools(server: McpServer, client: SparkClient): void {
       annotations: WRITE,
     },
     safe(async (args) => {
+      const canonical = (dir: string) => {
+        try {
+          return fs.realpathSync(path.resolve(dir.trim()));
+        } catch {
+          return path.resolve(dir.trim());
+        }
+      };
+      const projects = await client.get<ProjectWithState[]>('/api/projects');
+      const existing = projects.find(
+        (p) => p.name.trim() === args.name.trim() && canonical(p.cwd) === canonical(args.cwd),
+      );
       let terminals = args.terminals;
       let type = args.type;
       let detected: DetectResult | undefined;
-      if (!terminals) {
+      if (!existing && !terminals) {
         detected = await client.post<DetectResult>('/api/detect', { dir: args.cwd });
         if (!detected.suggestedCommand) {
           throw new Error('无法自动识别启动命令,请显式传入 terminals。识别结果:' + JSON.stringify(detected));
@@ -150,15 +163,21 @@ export function registerTools(server: McpServer, client: SparkClient): void {
         terminals = [{ name: 'main', command: detected.suggestedCommand }];
         type ??= detected.type;
       }
-      const created = await client.post<ProjectWithState>('/api/projects', {
-        name: args.name,
-        cwd: args.cwd,
-        ...(type ? { type } : {}),
-        terminals,
-        ...(args.groupIds ? { groupIds: args.groupIds } : {}),
-        ...(args.autoRestart === undefined ? {} : { autoRestart: args.autoRestart }),
-      });
-      const result: Record<string, unknown> = { created: summarizeProject(created), ...(detected ? { detected } : {}) };
+      const created =
+        existing ??
+        (await client.post<ProjectWithState>('/api/projects', {
+          name: args.name,
+          cwd: args.cwd,
+          ...(type ? { type } : {}),
+          terminals,
+          ...(args.groupIds ? { groupIds: args.groupIds } : {}),
+          ...(args.autoRestart === undefined ? {} : { autoRestart: args.autoRestart }),
+        }));
+      const result: Record<string, unknown> = {
+        created: summarizeProject(created),
+        reused: Boolean(existing),
+        ...(detected ? { detected } : {}),
+      };
       if (args.start) {
         try {
           await client.post(`/api/projects/${q(created.id)}/start`);

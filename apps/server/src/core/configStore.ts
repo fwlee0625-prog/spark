@@ -114,8 +114,23 @@ export class ConfigStore {
     return this.projects.find((p) => p.id === id) ?? null;
   }
 
+  findProjectByNameAndCwd(name: string, cwd: string): Project | null {
+    const canonical = (dir: string) => {
+      try {
+        return fs.realpathSync(path.resolve(dir));
+      } catch {
+        return path.resolve(dir);
+      }
+    };
+    const target = canonical(cwd);
+    const existing = this.projects.find((p) => p.name.trim() === name.trim() && canonical(p.cwd) === target);
+    return existing ? structuredClone(existing) : null;
+  }
+
   async addProject(input: Omit<Project, 'id' | 'createdAt'>): Promise<Project> {
     return this.enqueue(async () => {
+      const existing = this.findProjectByNameAndCwd(input.name, input.cwd);
+      if (existing) return existing;
       const project: Project = {
         ...structuredClone(input),
         id: `p_${randomUUID().slice(0, 8)}`,

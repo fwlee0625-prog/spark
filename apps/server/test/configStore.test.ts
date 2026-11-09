@@ -34,6 +34,23 @@ const baseProject = {
 };
 
 describe('ConfigStore', () => {
+  it('并发创建同名同路径项目时复用原记录并保留配置', async () => {
+    const store = makeStore();
+    await store.init();
+    const [first, second] = await Promise.all([
+      store.addProject({ ...baseProject, cwd: dir }),
+      store.addProject({ ...baseProject, cwd: `${dir}/./`, terminals: [] }),
+    ]);
+    expect(second).toEqual(first);
+    expect(store.listProjects()).toHaveLength(1);
+    const restored = makeStore();
+    await restored.init();
+    expect(restored.listProjects()).toEqual([first]);
+    const otherPath = await store.addProject({ ...baseProject, cwd: path.join(dir, 'other') });
+    const otherName = await store.addProject({ ...baseProject, name: 'other', cwd: dir });
+    expect(new Set([first.id, otherPath.id, otherName.id]).size).toBe(3);
+  });
+
   it('addProject 原子写入并持久化到磁盘', async () => {
     const store = makeStore();
     await store.init();

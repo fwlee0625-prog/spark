@@ -66,6 +66,15 @@ describe('/mcp 端点', () => {
     expect(created.error).toBe(false);
     expect(JSON.parse(created.text).created.terminalCount).toBe(2);
 
+    // 空目录无法识别命令,复用必须发生在自动识别之前。
+    const reused = await call('create_project', { name: 'demo', cwd: `${tmp}/./` });
+    expect(reused.error).toBe(false);
+    expect(JSON.parse(reused.text).reused).toBe(true);
+    expect(JSON.parse(reused.text).created.id).toBe(JSON.parse(created.text).created.id);
+    expect(JSON.parse(reused.text).created.terminalCount).toBe(2);
+    const list = await call('list_projects', {});
+    expect(JSON.parse(list.text).projects ?? JSON.parse(list.text)).toHaveLength(1);
+
     const terminals = await call('get_terminals', { project: 'demo' });
     expect(JSON.parse(terminals.text).terminalCount).toBe(2);
 

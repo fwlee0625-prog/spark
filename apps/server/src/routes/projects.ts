@@ -50,6 +50,8 @@ export function projectsRouter(ctx: SparkContext): Router {
       if (!fs.existsSync(cwd) || !fs.statSync(cwd).isDirectory()) {
         return res.status(400).json({ error: 'BAD_REQUEST', message: '项目目录不存在' });
       }
+      const existing = ctx.store.findProjectByNameAndCwd(name, cwd);
+      if (existing) return res.json(withState(ctx, existing));
       let terminals: TerminalConfig[];
       try {
         terminals = normalizeTerminals(body.terminals, cwd);
